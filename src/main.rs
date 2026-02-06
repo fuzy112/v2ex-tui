@@ -49,6 +49,7 @@ struct App {
     profile: Option<Member>,
     current_node: String,
     page: i32,
+    replies_page: i32,
     loading: bool,
     error: Option<String>,
     status_message: String,
@@ -102,6 +103,7 @@ impl App {
             profile: None,
             current_node: "python".to_string(),
             page: 1,
+            replies_page: 1,
             loading: false,
             error: None,
             status_message: "Press '?' for help".to_string(),
@@ -173,21 +175,43 @@ impl App {
         self.loading = false;
     }
 
-    async fn load_topic_replies(&mut self, client: &V2exClient, topic_id: i64) {
+    async fn load_topic_replies(&mut self, client: &V2exClient, topic_id: i64, append: bool) {
         self.loading = true;
         self.error = None;
 
-        match client.get_topic_replies(topic_id, 1).await {
+        // Reset page if not appending
+        if !append {
+            self.replies_page = 1;
+        }
+
+        match client.get_topic_replies(topic_id, self.replies_page).await {
             Ok(replies) => {
+                let replies_len = replies.len();
                 let is_empty = replies.is_empty();
-                self.topic_replies = replies;
-                self.selected_reply = 0;
-                if is_empty {
-                    self.replies_list_state.select(None);
+                if append && self.replies_page > 1 {
+                    // Append new replies to existing ones
+                    self.topic_replies.extend(replies);
+                    self.status_message = format!(
+                        "Loaded {} more replies (total: {})",
+                        replies_len,
+                        self.topic_replies.len()
+                    );
                 } else {
-                    self.replies_list_state.select(Some(0));
+                    // Replace replies (first page or not appending)
+                    self.topic_replies = replies;
+                    self.selected_reply = 0;
+                    if is_empty {
+                        self.replies_list_state.select(None);
+                    } else {
+                        self.replies_list_state.select(Some(0));
+                    }
+                    self.status_message = format!("Loaded {} replies", self.topic_replies.len());
                 }
-                self.status_message = format!("Loaded {} replies", self.topic_replies.len());
+
+                // Increment page for next load if we got replies
+                if !is_empty {
+                    self.replies_page += 1;
+                }
             }
             Err(e) => {
                 self.error = Some(format!("Failed to load replies: {}", e));
@@ -364,7 +388,7 @@ impl App {
                 self.topic_replies.clear();
                 self.reset_scroll();
                 self.load_topic_detail(client, topic_id).await;
-                self.load_topic_replies(client, topic_id).await;
+                self.load_topic_replies(client, topic_id, false).await;
                 self.status_message = format!("Switched to next topic (#{})", next_index + 1);
             }
         }
@@ -384,7 +408,7 @@ impl App {
                 self.topic_replies.clear();
                 self.reset_scroll();
                 self.load_topic_detail(client, topic_id).await;
-                self.load_topic_replies(client, topic_id).await;
+                self.load_topic_replies(client, topic_id, false).await;
                 self.status_message = format!("Switched to previous topic (#{})", prev_index + 1);
             }
         }
@@ -862,7 +886,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         app.view = View::TopicDetail;
                                         app.show_replies = true;
                                         app.load_topic_detail(&client, topic_id).await;
-                                        app.load_topic_replies(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id, false).await;
                                     }
                                 }
                                 View::Notifications => {
@@ -876,7 +900,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                             app.view = View::TopicDetail;
                                             app.show_replies = true;
                                             app.load_topic_detail(&client, topic_id).await;
-                                            app.load_topic_replies(&client, topic_id).await;
+                                            app.load_topic_replies(&client, topic_id, false).await;
 
                                             // Update status message
                                             if let Some(reply_id) = reply_id {
@@ -916,7 +940,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         app.view = View::TopicDetail;
                                         app.show_replies = true;
                                         app.load_topic_detail(&client, topic_id).await;
-                                        app.load_topic_replies(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id, false).await;
                                     }
                                 }
                                 View::Notifications => {
@@ -930,7 +954,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                             app.view = View::TopicDetail;
                                             app.show_replies = true;
                                             app.load_topic_detail(&client, topic_id).await;
-                                            app.load_topic_replies(&client, topic_id).await;
+                                            app.load_topic_replies(&client, topic_id, false).await;
 
                                             // Update status message
                                             if let Some(reply_id) = reply_id {
@@ -967,7 +991,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                     app.view = View::TopicDetail;
                                     app.show_replies = true;
                                     app.load_topic_detail(&client, topic_id).await;
-                                    app.load_topic_replies(&client, topic_id).await;
+                                    app.load_topic_replies(&client, topic_id, false).await;
                                 }
                             }
                             View::Notifications => {
@@ -981,7 +1005,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         app.view = View::TopicDetail;
                                         app.show_replies = true;
                                         app.load_topic_detail(&client, topic_id).await;
-                                        app.load_topic_replies(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id, false).await;
 
                                         // Update status message
                                         if let Some(reply_id) = reply_id {
@@ -1018,7 +1042,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                     if let Some(ref topic) = app.current_topic {
                                         let topic_id = topic.id;
                                         app.load_topic_detail(&client, topic_id).await;
-                                        app.load_topic_replies(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id, false).await;
                                     }
                                 }
                                 View::Notifications => app.load_notifications(&client).await,
@@ -1076,7 +1100,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         app.view = View::TopicDetail;
                                         app.show_replies = true;
                                         app.load_topic_detail(&client, topic_id).await;
-                                        app.load_topic_replies(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id, false).await;
                                     }
                                 }
                                 View::TopicDetail => {
@@ -1338,6 +1362,10 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         } else if app.view == View::TopicList {
                             app.page += 1;
                             app.load_topics(&client, true).await;
+                        } else if app.view == View::TopicDetail && app.show_replies {
+                            if let Some(ref topic) = app.current_topic {
+                                app.load_topic_replies(&client, topic.id, true).await;
+                            }
                         }
                     }
                     KeyCode::Char('<') => {
