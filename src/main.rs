@@ -753,6 +753,15 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             }
                         }
                     }
+                    KeyCode::Char('n')
+                        if key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                    {
+                        if app.view == View::NodeSelect {
+                            app.next_node();
+                        }
+                    }
                     KeyCode::Char('n') => {
                         if app.view == View::NodeSelect && app.is_manual_node_mode {
                             app.insert_node_char('n');
@@ -791,6 +800,15 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                 }
                             }
                             _ => {}
+                        }
+                    }
+                    KeyCode::Char('p')
+                        if key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                    {
+                        if app.view == View::NodeSelect {
+                            app.previous_node();
                         }
                     }
                     KeyCode::Char('p') => {
