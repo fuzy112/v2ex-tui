@@ -65,8 +65,6 @@ pub struct Topic {
 }
 
 impl Topic {
-
-
     /// Get the node title for display
     pub fn node_title(&self) -> &str {
         self.node
@@ -130,7 +128,7 @@ impl NotificationPayload {
                 if let Some(hash_pos) = s.find('#') {
                     let after_hash = &s[hash_pos + 1..];
                     let end_pos = after_hash
-                        .find(|c: char| !c.is_digit(10))
+                        .find(|c: char| !c.is_ascii_digit())
                         .unwrap_or(after_hash.len());
                     after_hash[..end_pos].parse().ok()
                 } else {
@@ -152,7 +150,7 @@ impl Notification {
         if let Some(t_pos) = text.find("/t/") {
             let after_t = &text[t_pos + 3..];
             let end_pos = after_t
-                .find(|c: char| !c.is_digit(10))
+                .find(|c: char| !c.is_ascii_digit())
                 .unwrap_or(after_t.len());
             after_t[..end_pos].parse().ok()
         } else {
@@ -164,8 +162,6 @@ impl Notification {
     pub fn extract_reply_id(&self) -> Option<i64> {
         self.payload.as_ref().and_then(|p| p.extract_reply_id())
     }
-
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

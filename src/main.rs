@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
-use fuzzy_matcher::skim::SkimMatcherV2;
-use fuzzy_matcher::FuzzyMatcher;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use ratatui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -13,11 +13,10 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
-use webbrowser;
 
 mod api;
-mod ui;
 mod nodes;
+mod ui;
 
 use api::{Member, Notification, Reply, Topic, V2exClient};
 use nodes::get_all_nodes;
@@ -60,7 +59,7 @@ struct App {
     selected_reply: usize,
     // Node selection
     favorite_nodes: Vec<(String, String)>, // Current nodes to display (favorites or suggestions)
-    all_nodes: Vec<(String, String)>, // All available nodes for autocompletion
+    all_nodes: Vec<(String, String)>,      // All available nodes for autocompletion
     original_favorite_nodes: Vec<(String, String)>, // Original favorite nodes (9 nodes)
     selected_node: usize,
     // List state for replies
@@ -327,10 +326,6 @@ impl App {
         }
     }
 
-    fn find_node_index(&self, node_name: &str) -> Option<usize> {
-        self.favorite_nodes.iter().position(|(name, _)| name == node_name)
-    }
-
     // Find current topic index in the topics list
     fn find_current_topic_index(&self) -> Option<usize> {
         if let Some(current_topic) = &self.current_topic {
@@ -501,16 +496,17 @@ impl App {
         } else {
             // Use Skim's fuzzy matching algorithm (V2)
             let matcher = SkimMatcherV2::default();
-            let mut scored_nodes: Vec<((String, String), i64)> = self.all_nodes
+            let mut scored_nodes: Vec<((String, String), i64)> = self
+                .all_nodes
                 .iter()
                 .filter_map(|(name, title)| {
                     // Try matching against both name and title
                     let name_score = matcher.fuzzy_match(name, input);
                     let title_score = matcher.fuzzy_match(title, input);
-                    
+
                     // Take the higher score
                     let score = name_score.unwrap_or(0).max(title_score.unwrap_or(0));
-                    
+
                     if score > 0 {
                         Some(((name.clone(), title.clone()), score))
                     } else {
@@ -518,10 +514,10 @@ impl App {
                     }
                 })
                 .collect();
-            
+
             // Sort by score descending (higher score = better match)
             scored_nodes.sort_by(|a, b| b.1.cmp(&a.1));
-            
+
             // Take top 20 matches
             self.favorite_nodes = scored_nodes
                 .into_iter()
@@ -643,7 +639,7 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
             render_help(frame, chunks[0], &app.theme);
         }
         View::NodeSelect => {
-             render_node_select(
+            render_node_select(
                 frame,
                 chunks[0],
                 &app.favorite_nodes,
@@ -1061,10 +1057,12 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         let url = format!("https://www.v2ex.com/t/{}", topic.id);
                                         match webbrowser::open(&url) {
                                             Ok(_) => {
-                                                app.status_message = format!("Opened topic {} in browser", topic.id);
+                                                app.status_message =
+                                                    format!("Opened topic {} in browser", topic.id);
                                             }
                                             Err(e) => {
-                                                app.error = Some(format!("Failed to open browser: {}", e));
+                                                app.error =
+                                                    Some(format!("Failed to open browser: {}", e));
                                             }
                                         }
                                     }
@@ -1074,28 +1072,40 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                         let url = format!("https://www.v2ex.com/t/{}", topic.id);
                                         match webbrowser::open(&url) {
                                             Ok(_) => {
-                                                app.status_message = format!("Opened topic {} in browser", topic.id);
+                                                app.status_message =
+                                                    format!("Opened topic {} in browser", topic.id);
                                             }
                                             Err(e) => {
-                                                app.error = Some(format!("Failed to open browser: {}", e));
+                                                app.error =
+                                                    Some(format!("Failed to open browser: {}", e));
                                             }
                                         }
                                     }
                                 }
                                 View::Notifications => {
-                                    if let Some(notification) = app.notifications.get(app.selected_notification) {
+                                    if let Some(notification) =
+                                        app.notifications.get(app.selected_notification)
+                                    {
                                         if let Some(topic_id) = notification.extract_topic_id() {
-                                            let url = format!("https://www.v2ex.com/t/{}", topic_id);
+                                            let url =
+                                                format!("https://www.v2ex.com/t/{}", topic_id);
                                             match webbrowser::open(&url) {
                                                 Ok(_) => {
-                                                    app.status_message = format!("Opened topic {} in browser", topic_id);
+                                                    app.status_message = format!(
+                                                        "Opened topic {} in browser",
+                                                        topic_id
+                                                    );
                                                 }
                                                 Err(e) => {
-                                                    app.error = Some(format!("Failed to open browser: {}", e));
+                                                    app.error = Some(format!(
+                                                        "Failed to open browser: {}",
+                                                        e
+                                                    ));
                                                 }
                                             }
                                         } else {
-                                            app.status_message = "No topic link in this notification".to_string();
+                                            app.status_message =
+                                                "No topic link in this notification".to_string();
                                         }
                                     }
                                 }
@@ -1223,12 +1233,10 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                     } else {
                                         app.selected_reply = 0;
                                     }
+                                } else if app.topic_scroll >= 15 {
+                                    app.topic_scroll -= 15;
                                 } else {
-                                    if app.topic_scroll >= 15 {
-                                        app.topic_scroll -= 15;
-                                    } else {
-                                        app.topic_scroll = 0;
-                                    }
+                                    app.topic_scroll = 0;
                                 }
                             }
                             _ => {}
@@ -1237,14 +1245,9 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     KeyCode::Char('+') => {
                         if app.view == View::NodeSelect && app.is_manual_node_mode {
                             app.insert_node_char('+');
-                        } else {
-                            match app.view {
-                                View::TopicList => {
-                                    app.page += 1;
-                                    app.load_topics(&client, true).await;
-                                }
-                                _ => {}
-                            }
+                        } else if app.view == View::TopicList {
+                            app.page += 1;
+                            app.load_topics(&client, true).await;
                         }
                     }
                     KeyCode::Char('<') => {
@@ -1334,8 +1337,10 @@ fn print_help() {
     println!("  u              Profile (user)");
     println!("  s              Select node from menu (Tab: manual input)");
     println!("  1-9            Quick switch nodes (1:python, etc.)");
-    println!("  t              Open topic / Toggle replies view
-  o              Open current topic in browser");
+    println!(
+        "  t              Open topic / Toggle replies view
+  o              Open current topic in browser"
+    );
     println!("  +              Load more topics");
     println!("  PageUp/Down    Load previous/next page of topics");
     println!("  N/P            Next/previous topic in detail view");
@@ -1408,7 +1413,7 @@ async fn main() -> Result<()> {
     // Parse command line arguments
     let args: Vec<String> = std::env::args().collect();
 
-    for arg in &args[1..] {
+    if let Some(arg) = args.get(1) {
         match arg.as_str() {
             "-h" | "--help" => {
                 print_help();

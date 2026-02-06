@@ -996,7 +996,10 @@ pub fn get_all_nodes() -> &'static [(String, String)] {
             ("survey".to_string(), "调查".to_string()),
             ("startupvisa".to_string(), "Startup Visa".to_string()),
             ("naq".to_string(), "不是问题的问题".to_string()),
-            ("monthly".to_string(), "每个月都会出现的那种主题".to_string()),
+            (
+                "monthly".to_string(),
+                "每个月都会出现的那种主题".to_string(),
+            ),
             ("wechat".to_string(), "微信".to_string()),
             ("immt".to_string(), "我叫 MT".to_string()),
             ("soho".to_string(), "SOHO".to_string()),
@@ -1068,7 +1071,10 @@ pub fn get_all_nodes() -> &'static [(String, String)] {
             ("lohas".to_string(), "乐活".to_string()),
             ("zakka".to_string(), "雑貨".to_string()),
             ("garageband".to_string(), "GarageBand".to_string()),
-            ("beforesunrise".to_string(), "早睡早起身体好俱乐部".to_string()),
+            (
+                "beforesunrise".to_string(),
+                "早睡早起身体好俱乐部".to_string(),
+            ),
             ("running".to_string(), "跑步".to_string()),
             ("air".to_string(), "空气".to_string()),
             ("pet".to_string(), "宠物".to_string()),
@@ -1190,7 +1196,10 @@ pub fn get_all_nodes() -> &'static [(String, String)] {
             ("coffices".to_string(), "严选咖啡店".to_string()),
             ("pua".to_string(), "把妹".to_string()),
             ("vibe-coding".to_string(), "Vibe Coding".to_string()),
-            ("apple-trade".to_string(), "苹果二手交易 · 验机 · 估价".to_string()),
+            (
+                "apple-trade".to_string(),
+                "苹果二手交易 · 验机 · 估价".to_string(),
+            ),
             ("wunder".to_string(), "Wunder".to_string()),
             ("lsp".to_string(), "LSP🔞".to_string()),
             ("magic".to_string(), "魔法".to_string()),
@@ -1219,7 +1228,10 @@ pub fn get_all_nodes() -> &'static [(String, String)] {
             ("emotion".to_string(), "情感".to_string()),
             ("lei".to_string(), "LEI".to_string()),
             ("parenting".to_string(), "育儿".to_string()),
-            ("ai-tools".to_string(), "AI Tools 精品 AI 工具导航".to_string()),
+            (
+                "ai-tools".to_string(),
+                "AI Tools 精品 AI 工具导航".to_string(),
+            ),
             // ... 1200 nodes ...
             ("prompt".to_string(), "prompt".to_string()),
             ("claudecode".to_string(), "Claude Code".to_string()),

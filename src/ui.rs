@@ -383,6 +383,7 @@ pub fn render_notifications(
     frame.render_widget(list, area);
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render_node_select(
     frame: &mut Frame,
     area: Rect,
@@ -721,10 +722,7 @@ pub fn render_token_input(
         Style::default().fg(theme.muted),
     )]));
 
-    let all_lines: Vec<Line> = instructions
-        .into_iter()
-        .chain(input_lines.into_iter())
-        .collect();
+    let all_lines: Vec<Line> = instructions.into_iter().chain(input_lines).collect();
 
     let input_widget = Paragraph::new(Text::from(all_lines))
         .block(
