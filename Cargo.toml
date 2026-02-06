@@ -18,3 +18,4 @@ directories = "5.0"
 chrono = { version = "0.4", features = ["serde"] }
 html2text = "0.12"
 unicode-width = "0.1"
+webbrowser = "0.5"

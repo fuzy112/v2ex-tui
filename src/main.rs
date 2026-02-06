@@ -11,6 +11,7 @@ use ratatui::{
     Frame, Terminal,
 };
 use std::io;
+use webbrowser;
 
 mod api;
 mod ui;
@@ -979,6 +980,58 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             }
                         }
                     }
+                    KeyCode::Char('o') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('o');
+                        } else {
+                            match app.view {
+                                View::TopicDetail => {
+                                    if let Some(ref topic) = app.current_topic {
+                                        let url = format!("https://www.v2ex.com/t/{}", topic.id);
+                                        match webbrowser::open(&url) {
+                                            Ok(_) => {
+                                                app.status_message = format!("Opened topic {} in browser", topic.id);
+                                            }
+                                            Err(e) => {
+                                                app.error = Some(format!("Failed to open browser: {}", e));
+                                            }
+                                        }
+                                    }
+                                }
+                                View::TopicList => {
+                                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                                        let url = format!("https://www.v2ex.com/t/{}", topic.id);
+                                        match webbrowser::open(&url) {
+                                            Ok(_) => {
+                                                app.status_message = format!("Opened topic {} in browser", topic.id);
+                                            }
+                                            Err(e) => {
+                                                app.error = Some(format!("Failed to open browser: {}", e));
+                                            }
+                                        }
+                                    }
+                                }
+                                View::Notifications => {
+                                    if let Some(notification) = app.notifications.get(app.selected_notification) {
+                                        if let Some(topic_id) = notification.extract_topic_id() {
+                                            let url = format!("https://www.v2ex.com/t/{}", topic_id);
+                                            match webbrowser::open(&url) {
+                                                Ok(_) => {
+                                                    app.status_message = format!("Opened topic {} in browser", topic_id);
+                                                }
+                                                Err(e) => {
+                                                    app.error = Some(format!("Failed to open browser: {}", e));
+                                                }
+                                            }
+                                        } else {
+                                            app.status_message = "No topic link in this notification".to_string();
+                                        }
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                     KeyCode::Char('N') => {
                         if app.view == View::NodeSelect && app.is_manual_node_mode {
                             app.insert_node_char('N');
@@ -1210,7 +1263,8 @@ fn print_help() {
     println!("  u              Profile (user)");
     println!("  s              Select node from menu (Tab: manual input)");
     println!("  1-9            Quick switch nodes (1:python, etc.)");
-    println!("  t              Open topic / Toggle replies view");
+    println!("  t              Open topic / Toggle replies view
+  o              Open current topic in browser");
     println!("  +              Load more topics");
     println!("  PageUp/Down    Load previous/next page of topics");
     println!("  N/P            Next/previous topic in detail view");
