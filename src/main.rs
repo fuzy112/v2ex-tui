@@ -1094,15 +1094,65 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             match app.view {
                                 View::TopicDetail => {
                                     if let Some(ref topic) = app.current_topic {
-                                        let url = format!("https://www.v2ex.com/t/{}", topic.id);
-                                        match webbrowser::open(&url) {
-                                            Ok(_) => {
-                                                app.status_message =
-                                                    format!("Opened topic {} in browser", topic.id);
+                                        // Check if we're in replies view and a reply is selected
+                                        if app.show_replies && !app.topic_replies.is_empty() {
+                                            if let Some(reply) =
+                                                app.topic_replies.get(app.selected_reply)
+                                            {
+                                                let url = format!(
+                                                    "https://www.v2ex.com/t/{}#r_{}",
+                                                    topic.id, reply.id
+                                                );
+                                                match webbrowser::open(&url) {
+                                                    Ok(_) => {
+                                                        app.status_message = format!(
+                                                            "Opened topic {} (reply #{}) in browser",
+                                                            topic.id, reply.id
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        app.error = Some(format!(
+                                                            "Failed to open browser: {}",
+                                                            e
+                                                        ));
+                                                    }
+                                                }
+                                            } else {
+                                                // Fallback to topic URL if selected reply is out of bounds
+                                                let url =
+                                                    format!("https://www.v2ex.com/t/{}", topic.id);
+                                                match webbrowser::open(&url) {
+                                                    Ok(_) => {
+                                                        app.status_message = format!(
+                                                            "Opened topic {} in browser",
+                                                            topic.id
+                                                        );
+                                                    }
+                                                    Err(e) => {
+                                                        app.error = Some(format!(
+                                                            "Failed to open browser: {}",
+                                                            e
+                                                        ));
+                                                    }
+                                                }
                                             }
-                                            Err(e) => {
-                                                app.error =
-                                                    Some(format!("Failed to open browser: {}", e));
+                                        } else {
+                                            // Not in replies view or no replies, open topic URL
+                                            let url =
+                                                format!("https://www.v2ex.com/t/{}", topic.id);
+                                            match webbrowser::open(&url) {
+                                                Ok(_) => {
+                                                    app.status_message = format!(
+                                                        "Opened topic {} in browser",
+                                                        topic.id
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    app.error = Some(format!(
+                                                        "Failed to open browser: {}",
+                                                        e
+                                                    ));
+                                                }
                                             }
                                         }
                                     }
