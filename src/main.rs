@@ -179,9 +179,14 @@ impl App {
 
         match client.get_topic_replies(topic_id, 1).await {
             Ok(replies) => {
+                let is_empty = replies.is_empty();
                 self.topic_replies = replies;
                 self.selected_reply = 0;
-                self.replies_list_state.select(Some(0));
+                if is_empty {
+                    self.replies_list_state.select(None);
+                } else {
+                    self.replies_list_state.select(Some(0));
+                }
                 self.status_message = format!("Loaded {} replies", self.topic_replies.len());
             }
             Err(e) => {
@@ -299,7 +304,11 @@ impl App {
     fn reset_scroll(&mut self) {
         self.topic_scroll = 0;
         self.selected_reply = 0;
-        self.replies_list_state.select(Some(0));
+        if self.topic_replies.is_empty() {
+            self.replies_list_state.select(None);
+        } else {
+            self.replies_list_state.select(Some(0));
+        }
     }
 
     // Node selection methods
