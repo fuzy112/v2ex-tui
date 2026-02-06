@@ -1,0 +1,20 @@
+# V2EX TUI - Terminal UI Viewer
+# A terminal-based viewer for V2EX using API 2.0 Beta
+
+[package]
+name = "v2ex-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.27"
+ratatui = "0.24"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.35", features = ["full"] }
+anyhow = "1.0"
+directories = "5.0"
+chrono = { version = "0.4", features = ["serde"] }
+html2text = "0.12"
+unicode-width = "0.1"
