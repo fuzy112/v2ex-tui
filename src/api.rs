@@ -93,6 +93,18 @@ pub struct Reply {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateReplyRequest {
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateTopicRequest {
+    pub title: String,
+    pub content: String,
+    pub node_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NotificationPayload {
     String(String),
@@ -251,6 +263,36 @@ impl V2exClient {
         Ok(api_response)
     }
 
+    async fn request_with_body<T: serde::de::DeserializeOwned, B: serde::Serialize>(
+        &self,
+        method: reqwest::Method,
+        endpoint: &str,
+        body: &B,
+    ) -> Result<ApiResponse<T>> {
+        let url = format!("{}/{}", BASE_URL, endpoint);
+        let response = self
+            .client
+            .request(method, &url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Content-Type", "application/json")
+            .json(body)
+            .send()
+            .await?;
+
+        let status = response.status();
+        let api_response: ApiResponse<T> = response.json().await?;
+
+        if !status.is_success() {
+            return Err(anyhow::anyhow!(
+                "API error: {} - {:?}",
+                status,
+                api_response.message
+            ));
+        }
+
+        Ok(api_response)
+    }
+
     pub async fn get_member(&self) -> Result<Member> {
         let response: ApiResponse<Member> = self.request(reqwest::Method::GET, "member").await?;
         response.result.context("No member data in response")
@@ -302,5 +344,27 @@ impl V2exClient {
         let response: ApiResponse<Vec<Reply>> =
             self.request(reqwest::Method::GET, &endpoint).await?;
         Ok(response.result.unwrap_or_default())
+    }
+
+    pub async fn create_reply(&self, topic_id: i64, content: String) -> Result<Reply> {
+        let endpoint = format!("topics/{}/replies", topic_id);
+        let request = CreateReplyRequest { content };
+        let response: ApiResponse<Reply> = self
+            .request_with_body(reqwest::Method::POST, &endpoint, &request)
+            .await?;
+        response.result.context("No reply data in response")
+    }
+
+    pub async fn create_topic(&self, title: String, content: String, node_name: String) -> Result<Topic> {
+        let endpoint = "topics";
+        let request = CreateTopicRequest {
+            title,
+            content,
+            node_name,
+        };
+        let response: ApiResponse<Topic> = self
+            .request_with_body(reqwest::Method::POST, &endpoint, &request)
+            .await?;
+        response.result.context("No topic data in response")
     }
 }
