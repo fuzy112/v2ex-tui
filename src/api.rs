@@ -65,13 +65,7 @@ pub struct Topic {
 }
 
 impl Topic {
-    /// Get the node name for display
-    pub fn node_name(&self) -> &str {
-        self.node
-            .as_ref()
-            .map(|n| n.name.as_str())
-            .unwrap_or("unknown")
-    }
+
 
     /// Get the node title for display
     pub fn node_title(&self) -> &str {
@@ -171,10 +165,7 @@ impl Notification {
         self.payload.as_ref().and_then(|p| p.extract_reply_id())
     }
 
-    /// Check if this notification has a topic link
-    pub fn has_topic_link(&self) -> bool {
-        self.extract_topic_id().is_some()
-    }
+
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -190,6 +181,7 @@ pub struct Notification {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct TokenInfo {
     pub token: String,
     pub scope: String,
@@ -268,6 +260,7 @@ impl V2exClient {
         response.result.context("No member data in response")
     }
 
+    #[allow(dead_code)]
     pub async fn get_token_info(&self) -> Result<TokenInfo> {
         let response: ApiResponse<TokenInfo> = self.request(reqwest::Method::GET, "token").await?;
         response.result.context("No token data in response")
@@ -280,6 +273,7 @@ impl V2exClient {
         Ok(response.result.unwrap_or_default())
     }
 
+    #[allow(dead_code)]
     pub async fn delete_notification(&self, notification_id: i64) -> Result<()> {
         let endpoint = format!("notifications/{}", notification_id);
         let _: ApiResponse<serde_json::Value> =
@@ -287,6 +281,7 @@ impl V2exClient {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_node(&self, node_name: &str) -> Result<Node> {
         let endpoint = format!("nodes/{}", node_name);
         let response: ApiResponse<Node> = self.request(reqwest::Method::GET, &endpoint).await?;

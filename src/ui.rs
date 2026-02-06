@@ -239,11 +239,6 @@ pub fn render_replies(
         .enumerate()
         .map(|(index, reply)| {
             let is_selected = list_state.selected() == Some(index);
-            let item_style = if is_selected {
-                Style::default().bg(theme.primary).fg(theme.background)
-            } else {
-                Style::default()
-            };
 
             let content_text = reply.content.as_deref().unwrap_or("No content");
             let content = html2text::from_read(
