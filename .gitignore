@@ -22,3 +22,6 @@ Thumbs.db
 
 # Test files
 test_api.rs
+
+# Nix build artifacts
+result
