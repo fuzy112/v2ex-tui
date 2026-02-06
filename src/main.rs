@@ -68,9 +68,9 @@ struct App {
     token_input: String,
     token_cursor: usize,
     // Node selection manual input
-    node_manual_input: String,
-    node_manual_cursor: usize,
-    is_manual_node_mode: bool,
+    node_completion_input: String,
+    node_completion_cursor: usize,
+    is_node_completion_mode: bool,
 }
 
 impl App {
@@ -116,9 +116,9 @@ impl App {
             replies_list_state: ListState::default(),
             token_input: String::new(),
             token_cursor: 0,
-            node_manual_input: String::new(),
-            node_manual_cursor: 0,
-            is_manual_node_mode: false,
+            node_completion_input: String::new(),
+            node_completion_cursor: 0,
+            is_node_completion_mode: false,
         }
     }
 
@@ -329,9 +329,17 @@ impl App {
     }
 
     fn select_current_node(&mut self) {
+        // First try to use the selected candidate from the list
         if let Some((node_name, _)) = self.favorite_nodes.get(self.selected_node) {
             self.current_node = node_name.clone();
             self.page = 1;
+        } else if self.is_node_completion_mode {
+            // In completion mode, fallback to manual input if no selection available
+            let node_name = self.node_completion_input.trim();
+            if !node_name.is_empty() {
+                self.current_node = node_name.to_string();
+                self.page = 1;
+            }
         }
     }
 
@@ -436,57 +444,57 @@ impl App {
     // Node manual input methods
     fn insert_node_char(&mut self, ch: char) {
         let byte_pos = self
-            .node_manual_input
+            .node_completion_input
             .char_indices()
-            .nth(self.node_manual_cursor)
+            .nth(self.node_completion_cursor)
             .map(|(i, _)| i)
-            .unwrap_or(self.node_manual_input.len());
-        self.node_manual_input.insert(byte_pos, ch);
-        self.node_manual_cursor += 1;
+            .unwrap_or(self.node_completion_input.len());
+        self.node_completion_input.insert(byte_pos, ch);
+        self.node_completion_cursor += 1;
         // Update suggestions after inserting character
-        if self.is_manual_node_mode {
+        if self.is_node_completion_mode {
             self.update_node_suggestions();
         }
     }
 
     fn delete_node_char(&mut self) {
-        if self.node_manual_cursor > 0 {
+        if self.node_completion_cursor > 0 {
             let byte_pos = self
-                .node_manual_input
+                .node_completion_input
                 .char_indices()
-                .nth(self.node_manual_cursor - 1)
+                .nth(self.node_completion_cursor - 1)
                 .map(|(i, _)| i)
                 .unwrap_or(0);
             let next_byte_pos = self
-                .node_manual_input
+                .node_completion_input
                 .char_indices()
-                .nth(self.node_manual_cursor)
+                .nth(self.node_completion_cursor)
                 .map(|(i, _)| i)
-                .unwrap_or(self.node_manual_input.len());
-            self.node_manual_input.drain(byte_pos..next_byte_pos);
-            self.node_manual_cursor -= 1;
+                .unwrap_or(self.node_completion_input.len());
+            self.node_completion_input.drain(byte_pos..next_byte_pos);
+            self.node_completion_cursor -= 1;
             // Update suggestions after deleting character
-            if self.is_manual_node_mode {
+            if self.is_node_completion_mode {
                 self.update_node_suggestions();
             }
         }
     }
 
     fn move_node_cursor_left(&mut self) {
-        if self.node_manual_cursor > 0 {
-            self.node_manual_cursor -= 1;
+        if self.node_completion_cursor > 0 {
+            self.node_completion_cursor -= 1;
         }
     }
 
     fn move_node_cursor_right(&mut self) {
-        if self.node_manual_cursor < self.node_manual_input.chars().count() {
-            self.node_manual_cursor += 1;
+        if self.node_completion_cursor < self.node_completion_input.chars().count() {
+            self.node_completion_cursor += 1;
         }
     }
 
-    fn toggle_manual_node_mode(&mut self) {
-        self.is_manual_node_mode = !self.is_manual_node_mode;
-        if self.is_manual_node_mode {
+    fn toggle_node_completion_mode(&mut self) {
+        self.is_node_completion_mode = !self.is_node_completion_mode;
+        if self.is_node_completion_mode {
             // Entering manual mode, update suggestions based on current input
             self.update_node_suggestions();
         } else {
@@ -497,7 +505,7 @@ impl App {
     }
 
     fn update_node_suggestions(&mut self) {
-        let input = self.node_manual_input.trim();
+        let input = self.node_completion_input.trim();
         if input.is_empty() {
             // If input is empty, show all nodes (or maybe top N nodes)
             // For now, show first 20 nodes from all_nodes
@@ -537,25 +545,17 @@ impl App {
         self.selected_node = 0;
     }
 
-    fn select_manual_node(&mut self) {
-        let node_name = self.node_manual_input.trim();
-        if !node_name.is_empty() {
-            self.current_node = node_name.to_string();
-            self.page = 1;
-        }
-    }
-
     fn reset_node_selection(&mut self) {
-        self.node_manual_input.clear();
-        self.node_manual_cursor = 0;
-        self.is_manual_node_mode = false;
+        self.node_completion_input.clear();
+        self.node_completion_cursor = 0;
+        self.is_node_completion_mode = false;
     }
 
     fn enter_completing_read_mode(&mut self) {
         self.view = View::NodeSelect;
-        self.node_manual_input.clear();
-        self.node_manual_cursor = 0;
-        self.is_manual_node_mode = true;
+        self.node_completion_input.clear();
+        self.node_completion_cursor = 0;
+        self.is_node_completion_mode = true;
         self.update_node_suggestions();
     }
 }
@@ -654,9 +654,9 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
                 &app.favorite_nodes,
                 app.selected_node,
                 &app.current_node,
-                &app.node_manual_input,
-                app.node_manual_cursor,
-                app.is_manual_node_mode,
+                &app.node_completion_input,
+                app.node_completion_cursor,
+                app.is_node_completion_mode,
                 &app.theme,
             );
         }
@@ -687,7 +687,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
             if key.kind == KeyEventKind::Press {
                 match key.code {
                     KeyCode::Char('q') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('q');
                         } else {
                             match app.view {
@@ -713,14 +713,14 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     },
                     KeyCode::Char('?') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('?');
                         } else {
                             app.view = View::Help;
                         }
                     }
                     KeyCode::Char('h') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('h');
                         } else {
                             match app.view {
@@ -737,7 +737,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Left => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.move_node_cursor_left();
                         } else {
                             match app.view {
@@ -763,7 +763,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('n') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('n');
                         } else {
                             match app.view {
@@ -786,7 +786,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             View::TopicList => app.next_topic(),
                             View::Notifications => app.next_notification(),
                             View::NodeSelect => {
-                                if app.is_manual_node_mode {
+                                if app.is_node_completion_mode {
                                     // Do nothing in manual mode
                                 } else {
                                     app.next_node();
@@ -812,7 +812,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('p') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('p');
                         } else {
                             match app.view {
@@ -835,7 +835,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             View::TopicList => app.previous_topic(),
                             View::Notifications => app.previous_notification(),
                             View::NodeSelect => {
-                                if app.is_manual_node_mode {
+                                if app.is_node_completion_mode {
                                     // Do nothing in manual mode
                                 } else {
                                     app.previous_node();
@@ -852,7 +852,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('l') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('l');
                         } else {
                             match app.view {
@@ -906,7 +906,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Right => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.move_node_cursor_right();
                         } else {
                             match app.view {
@@ -1000,23 +1000,16 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                 }
                             }
                             View::NodeSelect => {
-                                if app.is_manual_node_mode {
-                                    app.select_manual_node();
-                                    app.reset_node_selection();
-                                    app.view = View::TopicList;
-                                    app.load_topics(&client, false).await;
-                                } else {
-                                    app.select_current_node();
-                                    app.reset_node_selection();
-                                    app.view = View::TopicList;
-                                    app.load_topics(&client, false).await;
-                                }
+                                app.select_current_node();
+                                app.reset_node_selection();
+                                app.view = View::TopicList;
+                                app.load_topics(&client, false).await;
                             }
                             _ => {}
                         }
                     }
                     KeyCode::Char('r') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('r');
                         } else {
                             match app.view {
@@ -1035,7 +1028,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('m') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('m');
                         } else {
                             app.view = View::Notifications;
@@ -1043,7 +1036,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('u') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('u');
                         } else {
                             app.view = View::Profile;
@@ -1053,12 +1046,12 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     KeyCode::Char('s') => {
                         match app.view {
                             View::NodeSelect => {
-                                if app.is_manual_node_mode {
+                                if app.is_node_completion_mode {
                                     // In manual mode, insert 's' as character
                                     app.insert_node_char('s');
                                 } else {
                                     // Already in node select, toggle manual mode
-                                    app.toggle_manual_node_mode();
+                                    app.toggle_node_completion_mode();
                                 }
                             }
                             _ => {
@@ -1069,11 +1062,11 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     }
                     KeyCode::Tab => {
                         if app.view == View::NodeSelect {
-                            app.toggle_manual_node_mode();
+                            app.toggle_node_completion_mode();
                         }
                     }
                     KeyCode::Char('t') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('t');
                         } else {
                             match app.view {
@@ -1095,7 +1088,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('o') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('o');
                         } else {
                             match app.view {
@@ -1161,21 +1154,21 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('N') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('N');
                         } else if app.view == View::TopicDetail {
                             app.switch_to_next_topic(&client).await;
                         }
                     }
                     KeyCode::Char('P') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('P');
                         } else if app.view == View::TopicDetail {
                             app.switch_to_previous_topic(&client).await;
                         }
                     }
                     KeyCode::Char('1') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('1');
                         } else {
                             app.switch_node("python");
@@ -1183,7 +1176,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('2') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('2');
                         } else {
                             app.switch_node("programmer");
@@ -1191,7 +1184,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('3') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('3');
                         } else {
                             app.switch_node("share");
@@ -1199,7 +1192,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('4') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('4');
                         } else {
                             app.switch_node("create");
@@ -1207,7 +1200,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('5') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('5');
                         } else {
                             app.switch_node("jobs");
@@ -1215,7 +1208,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('6') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('6');
                         } else {
                             app.switch_node("go");
@@ -1223,7 +1216,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('7') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('7');
                         } else {
                             app.switch_node("rust");
@@ -1231,7 +1224,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('8') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('8');
                         } else {
                             app.switch_node("javascript");
@@ -1239,7 +1232,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('9') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('9');
                         } else {
                             app.switch_node("linux");
@@ -1290,7 +1283,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('+') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('+');
                         } else if app.view == View::TopicList {
                             app.page += 1;
@@ -1298,7 +1291,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('<') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('<');
                         } else {
                             match app.view {
@@ -1315,7 +1308,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     }
                     KeyCode::Char('>') => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('>');
                         } else {
                             match app.view {
@@ -1341,12 +1334,12 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     }
                     KeyCode::Char(ch) => {
                         // Handle character input for manual node mode
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char(ch);
                         }
                     }
                     KeyCode::Backspace => {
-                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.delete_node_char();
                         }
                     }

@@ -390,9 +390,9 @@ pub fn render_node_select(
     nodes: &[(String, String)],
     selected: usize,
     current_node: &str,
-    manual_input: &str,
+    completion_input: &str,
     cursor_position: usize,
-    is_manual_mode: bool,
+    is_node_completion_mode: bool,
     theme: &Theme,
 ) {
     let chunks = Layout::default()
@@ -405,7 +405,7 @@ pub fn render_node_select(
         .iter()
         .enumerate()
         .map(|(i, (name, title))| {
-            let style = if i == selected && !is_manual_mode {
+            let style = if i == selected {
                 Style::default()
                     .bg(theme.primary)
                     .fg(theme.background)
@@ -439,12 +439,12 @@ pub fn render_node_select(
 
     frame.render_widget(list, chunks[0]);
 
-    // Manual input field
+    // Node completion input field
     let mut input_spans = vec![Span::styled("Node: ", Style::default().fg(theme.primary))];
 
-    let input_len = manual_input.chars().count();
-    for (i, ch) in manual_input.chars().enumerate() {
-        if is_manual_mode && i == cursor_position {
+    let input_len = completion_input.chars().count();
+    for (i, ch) in completion_input.chars().enumerate() {
+        if is_node_completion_mode && i == cursor_position {
             input_spans.push(Span::styled(
                 ch.to_string(),
                 Style::default().bg(theme.primary).fg(theme.background),
@@ -457,7 +457,7 @@ pub fn render_node_select(
         }
     }
 
-    if is_manual_mode && cursor_position == input_len {
+    if is_node_completion_mode && cursor_position == input_len {
         input_spans.push(Span::styled(
             " ",
             Style::default().bg(theme.primary).fg(theme.background),
@@ -467,12 +467,12 @@ pub fn render_node_select(
     let input_widget = Paragraph::new(Line::from(input_spans)).block(
         Block::default()
             .borders(Borders::ALL)
-            .border_style(if is_manual_mode {
+            .border_style(if is_node_completion_mode {
                 Style::default().fg(theme.accent)
             } else {
                 Style::default().fg(theme.muted)
             })
-            .title(" Manual Input (Tab to switch) "),
+            .title(" Node Completion (Tab to toggle) "),
     );
 
     frame.render_widget(input_widget, chunks[1]);
