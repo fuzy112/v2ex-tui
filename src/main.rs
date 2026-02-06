@@ -686,7 +686,23 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => match app.view {
+                    KeyCode::Char('q') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('q');
+                        } else {
+                            match app.view {
+                                View::TopicList => break,
+                                View::NodeSelect => {
+                                    app.view = View::TopicList;
+                                }
+                                _ => {
+                                    app.view = View::TopicList;
+                                    app.error = None;
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Esc => match app.view {
                         View::TopicList => break,
                         View::NodeSelect => {
                             app.view = View::TopicList;
@@ -697,7 +713,11 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                         }
                     },
                     KeyCode::Char('?') => {
-                        app.view = View::Help;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('?');
+                        } else {
+                            app.view = View::Help;
+                        }
                     }
                     KeyCode::Char('h') => {
                         if app.view == View::NodeSelect && app.is_manual_node_mode {
