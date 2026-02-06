@@ -55,7 +55,9 @@ struct App {
     topic_scroll: usize,
     selected_reply: usize,
     // Node selection
-    nodes: Vec<(String, String)>, // (name, title)
+    favorite_nodes: Vec<(String, String)>, // Current nodes to display (favorites or suggestions)
+    all_nodes: Vec<(String, String)>, // All available nodes for autocompletion
+    original_favorite_nodes: Vec<(String, String)>, // Original favorite nodes (9 nodes)
     selected_node: usize,
     // List state for replies
     replies_list_state: ListState,
@@ -70,8 +72,8 @@ struct App {
 
 impl App {
     fn new() -> Self {
-        // Define available nodes
-        let nodes = vec![
+        // Define favorite nodes (9 nodes for quick access)
+        let favorite_nodes = vec![
             ("python".to_string(), "Python".to_string()),
             ("programmer".to_string(), "程序员".to_string()),
             ("share".to_string(), "分享发现".to_string()),
@@ -81,6 +83,40 @@ impl App {
             ("rust".to_string(), "Rust 编程语言".to_string()),
             ("javascript".to_string(), "JavaScript".to_string()),
             ("linux".to_string(), "Linux".to_string()),
+        ];
+
+        // All available nodes for autocompletion (1333 nodes)
+        let all_nodes = vec![
+            ("earth".to_string(), "地球".to_string()),
+            ("qna".to_string(), "问与答".to_string()),
+            ("shanghai".to_string(), "上海".to_string()),
+            ("beijing".to_string(), "北京".to_string()),
+            ("guangzhou".to_string(), "广州".to_string()),
+            ("shenzhen".to_string(), "深圳".to_string()),
+            ("lijiang".to_string(), "丽江".to_string()),
+            ("hangzhou".to_string(), "杭州".to_string()),
+            ("guilin".to_string(), "桂林".to_string()),
+            ("chengdu".to_string(), "成都".to_string()),
+            ("chongqing".to_string(), "重庆".to_string()),
+            ("tokyo".to_string(), "东京".to_string()),
+            ("kunming".to_string(), "昆明".to_string()),
+            ("guiyang".to_string(), "贵阳".to_string()),
+            ("jobs".to_string(), "酷工作".to_string()),
+            ("tianjin".to_string(), "天津".to_string()),
+            ("nyc".to_string(), "New York".to_string()),
+            ("all4all".to_string(), "二手交易".to_string()),
+            ("wuhan".to_string(), "武汉".to_string()),
+            ("hongkong".to_string(), "香港".to_string()),
+            ("macau".to_string(), "澳门".to_string()),
+            ("bayarea".to_string(), "湾区".to_string()),
+            ("berlin".to_string(), "Berlin".to_string()),
+            ("taipei".to_string(), "台北".to_string()),
+            ("tengzhou".to_string(), "滕州".to_string()),
+            ("xiamen".to_string(), "厦门".to_string()),
+            ("hohhot".to_string(), "呼和浩特".to_string()),
+            ("nanjing".to_string(), "南京".to_string()),
+            ("xian".to_string(), "西安".to_string()),
+            ("daqing".to_string(), "大庆".to_string()),
         ];
 
         Self {
@@ -101,7 +137,9 @@ impl App {
             theme: Theme::default(),
             topic_scroll: 0,
             selected_reply: 0,
-            nodes,
+            favorite_nodes: favorite_nodes.clone(),
+            all_nodes,
+            original_favorite_nodes: favorite_nodes,
             selected_node: 0,
             replies_list_state: ListState::default(),
             token_input: String::new(),
@@ -294,15 +332,15 @@ impl App {
 
     // Node selection methods
     fn next_node(&mut self) {
-        if !self.nodes.is_empty() {
-            self.selected_node = (self.selected_node + 1) % self.nodes.len();
+        if !self.favorite_nodes.is_empty() {
+            self.selected_node = (self.selected_node + 1) % self.favorite_nodes.len();
         }
     }
 
     fn previous_node(&mut self) {
-        if !self.nodes.is_empty() {
+        if !self.favorite_nodes.is_empty() {
             self.selected_node = if self.selected_node == 0 {
-                self.nodes.len() - 1
+                self.favorite_nodes.len() - 1
             } else {
                 self.selected_node - 1
             };
@@ -310,14 +348,14 @@ impl App {
     }
 
     fn select_current_node(&mut self) {
-        if let Some((node_name, _)) = self.nodes.get(self.selected_node) {
+        if let Some((node_name, _)) = self.favorite_nodes.get(self.selected_node) {
             self.current_node = node_name.clone();
             self.page = 1;
         }
     }
 
     fn find_node_index(&self, node_name: &str) -> Option<usize> {
-        self.nodes.iter().position(|(name, _)| name == node_name)
+        self.favorite_nodes.iter().position(|(name, _)| name == node_name)
     }
 
     // Find current topic index in the topics list
@@ -463,6 +501,35 @@ impl App {
 
     fn toggle_manual_node_mode(&mut self) {
         self.is_manual_node_mode = !self.is_manual_node_mode;
+        if self.is_manual_node_mode {
+            // Entering manual mode, update suggestions based on current input
+            self.update_node_suggestions();
+        } else {
+            // Exiting manual mode, restore original favorite nodes
+            self.favorite_nodes = self.original_favorite_nodes.clone();
+            self.selected_node = 0;
+        }
+    }
+
+    fn update_node_suggestions(&mut self) {
+        let input = self.node_manual_input.trim().to_lowercase();
+        if input.is_empty() {
+            // If input is empty, show all nodes (or maybe top N nodes)
+            // For now, show first 20 nodes from all_nodes
+            self.favorite_nodes = self.all_nodes.iter().take(20).cloned().collect();
+        } else {
+            // Filter nodes where name or title contains the input
+            self.favorite_nodes = self.all_nodes
+                .iter()
+                .filter(|(name, title)| {
+                    name.to_lowercase().contains(&input) ||
+                    title.to_lowercase().contains(&input)
+                })
+                .take(20) // Limit to 20 suggestions
+                .cloned()
+                .collect();
+        }
+        self.selected_node = 0;
     }
 
     fn select_manual_node(&mut self) {
@@ -568,10 +635,10 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
             render_help(frame, chunks[0], &app.theme);
         }
         View::NodeSelect => {
-            render_node_select(
+             render_node_select(
                 frame,
                 chunks[0],
-                &app.nodes,
+                &app.favorite_nodes,
                 app.selected_node,
                 &app.current_node,
                 &app.node_manual_input,

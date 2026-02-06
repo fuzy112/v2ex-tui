@@ -8,7 +8,7 @@ let
 in
 
 pkgs.mkShell {
-  buildInputs = with pkgs; [
+   buildInputs = with pkgs; [
     cargo
     rustc
     rustfmt
@@ -19,6 +19,7 @@ pkgs.mkShell {
     git
     ripgrep
     fd
+    python3
   ];
 
   RUST_BACKTRACE = 1;
