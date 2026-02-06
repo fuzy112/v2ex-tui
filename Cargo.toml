@@ -19,3 +19,4 @@ chrono = { version = "0.4", features = ["serde"] }
 html2text = "0.12"
 unicode-width = "0.1"
 webbrowser = "0.5"
+fuzzy-matcher = "0.3"

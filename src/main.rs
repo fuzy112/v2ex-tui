@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
@@ -15,8 +17,10 @@ use webbrowser;
 
 mod api;
 mod ui;
+mod nodes;
 
 use api::{Member, Notification, Reply, Topic, V2exClient};
+use nodes::get_all_nodes;
 use ui::{
     render_error, render_help, render_loading, render_node_select, render_notifications,
     render_profile, render_replies, render_status_bar, render_token_input, render_topic_detail,
@@ -86,38 +90,7 @@ impl App {
         ];
 
         // All available nodes for autocompletion (1333 nodes)
-        let all_nodes = vec![
-            ("earth".to_string(), "地球".to_string()),
-            ("qna".to_string(), "问与答".to_string()),
-            ("shanghai".to_string(), "上海".to_string()),
-            ("beijing".to_string(), "北京".to_string()),
-            ("guangzhou".to_string(), "广州".to_string()),
-            ("shenzhen".to_string(), "深圳".to_string()),
-            ("lijiang".to_string(), "丽江".to_string()),
-            ("hangzhou".to_string(), "杭州".to_string()),
-            ("guilin".to_string(), "桂林".to_string()),
-            ("chengdu".to_string(), "成都".to_string()),
-            ("chongqing".to_string(), "重庆".to_string()),
-            ("tokyo".to_string(), "东京".to_string()),
-            ("kunming".to_string(), "昆明".to_string()),
-            ("guiyang".to_string(), "贵阳".to_string()),
-            ("jobs".to_string(), "酷工作".to_string()),
-            ("tianjin".to_string(), "天津".to_string()),
-            ("nyc".to_string(), "New York".to_string()),
-            ("all4all".to_string(), "二手交易".to_string()),
-            ("wuhan".to_string(), "武汉".to_string()),
-            ("hongkong".to_string(), "香港".to_string()),
-            ("macau".to_string(), "澳门".to_string()),
-            ("bayarea".to_string(), "湾区".to_string()),
-            ("berlin".to_string(), "Berlin".to_string()),
-            ("taipei".to_string(), "台北".to_string()),
-            ("tengzhou".to_string(), "滕州".to_string()),
-            ("xiamen".to_string(), "厦门".to_string()),
-            ("hohhot".to_string(), "呼和浩特".to_string()),
-            ("nanjing".to_string(), "南京".to_string()),
-            ("xian".to_string(), "西安".to_string()),
-            ("daqing".to_string(), "大庆".to_string()),
-        ];
+        let all_nodes = get_all_nodes().to_vec();
 
         Self {
             view: View::TopicList,
@@ -466,6 +439,10 @@ impl App {
             .unwrap_or(self.node_manual_input.len());
         self.node_manual_input.insert(byte_pos, ch);
         self.node_manual_cursor += 1;
+        // Update suggestions after inserting character
+        if self.is_manual_node_mode {
+            self.update_node_suggestions();
+        }
     }
 
     fn delete_node_char(&mut self) {
@@ -484,6 +461,10 @@ impl App {
                 .unwrap_or(self.node_manual_input.len());
             self.node_manual_input.drain(byte_pos..next_byte_pos);
             self.node_manual_cursor -= 1;
+            // Update suggestions after deleting character
+            if self.is_manual_node_mode {
+                self.update_node_suggestions();
+            }
         }
     }
 
@@ -512,21 +493,40 @@ impl App {
     }
 
     fn update_node_suggestions(&mut self) {
-        let input = self.node_manual_input.trim().to_lowercase();
+        let input = self.node_manual_input.trim();
         if input.is_empty() {
             // If input is empty, show all nodes (or maybe top N nodes)
             // For now, show first 20 nodes from all_nodes
             self.favorite_nodes = self.all_nodes.iter().take(20).cloned().collect();
         } else {
-            // Filter nodes where name or title contains the input
-            self.favorite_nodes = self.all_nodes
+            // Use Skim's fuzzy matching algorithm (V2)
+            let matcher = SkimMatcherV2::default();
+            let mut scored_nodes: Vec<((String, String), i64)> = self.all_nodes
                 .iter()
-                .filter(|(name, title)| {
-                    name.to_lowercase().contains(&input) ||
-                    title.to_lowercase().contains(&input)
+                .filter_map(|(name, title)| {
+                    // Try matching against both name and title
+                    let name_score = matcher.fuzzy_match(name, input);
+                    let title_score = matcher.fuzzy_match(title, input);
+                    
+                    // Take the higher score
+                    let score = name_score.unwrap_or(0).max(title_score.unwrap_or(0));
+                    
+                    if score > 0 {
+                        Some(((name.clone(), title.clone()), score))
+                    } else {
+                        None
+                    }
                 })
-                .take(20) // Limit to 20 suggestions
-                .cloned()
+                .collect();
+            
+            // Sort by score descending (higher score = better match)
+            scored_nodes.sort_by(|a, b| b.1.cmp(&a.1));
+            
+            // Take top 20 matches
+            self.favorite_nodes = scored_nodes
+                .into_iter()
+                .take(20)
+                .map(|(node, _)| node)
                 .collect();
         }
         self.selected_node = 0;
@@ -544,6 +544,14 @@ impl App {
         self.node_manual_input.clear();
         self.node_manual_cursor = 0;
         self.is_manual_node_mode = false;
+    }
+
+    fn enter_completing_read_mode(&mut self) {
+        self.view = View::NodeSelect;
+        self.node_manual_input.clear();
+        self.node_manual_cursor = 0;
+        self.is_manual_node_mode = true;
+        self.update_node_suggestions();
     }
 }
 
@@ -1011,12 +1019,8 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                 }
                             }
                             _ => {
-                                app.view = View::NodeSelect;
-                                app.reset_node_selection();
-                                // Find current node in the list
-                                if let Some(index) = app.find_node_index(&app.current_node) {
-                                    app.selected_node = index;
-                                }
+                                // Directly enter completing-read mode
+                                app.enter_completing_read_mode();
                             }
                         }
                     }

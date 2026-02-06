@@ -13,6 +13,7 @@ pkgs.mkShell {
     rustc
     rustfmt
     clippy
+    rust-analyzer
     pkg-config
     openssl
     # Additional tools
@@ -29,14 +30,5 @@ pkgs.mkShell {
     echo "Rust version: $(rustc --version)"
     echo "Cargo version: $(cargo --version)"
     echo ""
-    echo "Available commands:"
-    echo "  cargo build          - Build the project"
-    echo "  cargo build --release - Build optimized release"
-    echo "  cargo run            - Build and run"
-    echo "  cargo test           - Run tests"
-    echo "  cargo clippy         - Run linter"
-    echo "  cargo fmt            - Format code"
-    echo ""
-    echo "Run ./target/release/v2ex-tui --help for usage"
   '';
 }
