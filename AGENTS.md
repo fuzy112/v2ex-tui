@@ -153,6 +153,9 @@ async fn load_topics(&mut self, append: bool) -> Result<()> {
 - Implement proper error handling for API responses
 - Handle rate limiting (600 requests per hour per IP)
 - Cache responses when appropriate
+- Handle inconsistent API response formats (notifications can be string or object)
+- Handle pagination issues (replies pagination may not work correctly)
+- Convert HTML content to plain text for display
 
 ## Project Structure
 
@@ -262,9 +265,44 @@ Users must create `~/.config/v2ex/token.txt` with their V2EX Personal Access Tok
 4. Update documentation
 5. Run all tests after refactoring
 
+## V2EX API 2.0 Beta Details
+
+### Base URL
+```
+https://www.v2ex.com/api/v2/
+```
+
+### Authentication
+- Use Personal Access Token in Authorization header
+- Format: `Authorization: Bearer <token>`
+- Token stored in `~/.config/v2ex/token.txt`
+
+### Rate Limits
+- 600 requests per hour per IP
+- Check headers: `X-Rate-Limit-Limit`, `X-Rate-Limit-Remaining`, `X-Rate-Limit-Reset`
+- CDN-cached requests only count on first request
+
+### Available Endpoints
+1. **GET /notifications** - Get latest notifications (pagination: `?p=`)
+2. **DELETE /notifications/:id** - Delete specific notification
+3. **GET /member** - Get user profile
+4. **GET /token** - Get current token info
+5. **POST /tokens** - Create new token
+6. **GET /nodes/:name** - Get node info
+7. **GET /nodes/:name/topics** - Get topics in node (pagination: `?p=`)
+8. **GET /topics/:id** - Get topic details
+9. **GET /topics/:id/replies** - Get topic replies (pagination: `?p=`)
+
+### Important Notes
+- Replies pagination may not work correctly (known issue)
+- Notification payload format varies (string or object)
+- Member API returns minimal avatar URLs (mini size)
+- API responses may have inconsistent data structures
+
 ## Resources
 
 - [V2EX API 2.0 Beta Documentation](https://www.v2ex.com/help/api)
+- [V2EX API Discussion Node](https://v2ex.com/go/v2exapi)
 - [Ratatui Documentation](https://docs.rs/ratatui)
 - [Reqwest Documentation](https://docs.rs/reqwest)
 - [Anyhow Documentation](https://docs.rs/anyhow)
