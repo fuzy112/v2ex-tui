@@ -1,4 +1,4 @@
-use std::io;
+use anyhow::{Context, Result};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
     execute,
@@ -10,15 +10,17 @@ use ratatui::{
     widgets::ListState,
     Frame, Terminal,
 };
-use anyhow::Result;
+use std::io;
 
 mod api;
 mod ui;
 
-use api::{V2exClient, Topic, Reply, Notification, Member};
-use ui::{Theme, render_topic_list, render_topic_detail, render_replies, 
-         render_notifications, render_profile, render_help, render_loading, 
-         render_error, render_status_bar, render_node_select};
+use api::{Member, Notification, Reply, Topic, V2exClient};
+use ui::{
+    render_error, render_help, render_loading, render_node_select, render_notifications,
+    render_profile, render_replies, render_status_bar, render_token_input, render_topic_detail,
+    render_topic_list, Theme,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum View {
@@ -28,6 +30,7 @@ enum View {
     Profile,
     Help,
     NodeSelect,
+    TokenInput,
 }
 
 #[derive(Debug)]
@@ -55,6 +58,13 @@ struct App {
     selected_node: usize,
     // List state for replies
     replies_list_state: ListState,
+    // Token input
+    token_input: String,
+    token_cursor: usize,
+    // Node selection manual input
+    node_manual_input: String,
+    node_manual_cursor: usize,
+    is_manual_node_mode: bool,
 }
 
 impl App {
@@ -71,7 +81,7 @@ impl App {
             ("javascript".to_string(), "JavaScript".to_string()),
             ("linux".to_string(), "Linux".to_string()),
         ];
-        
+
         Self {
             view: View::TopicList,
             topics: Vec::new(),
@@ -93,13 +103,18 @@ impl App {
             nodes,
             selected_node: 0,
             replies_list_state: ListState::default(),
+            token_input: String::new(),
+            token_cursor: 0,
+            node_manual_input: String::new(),
+            node_manual_cursor: 0,
+            is_manual_node_mode: false,
         }
     }
 
     async fn load_topics(&mut self, client: &V2exClient, append: bool) {
         self.loading = true;
         self.error = None;
-        
+
         match client.get_node_topics(&self.current_node, self.page).await {
             Ok(mut new_topics) => {
                 if append && self.page > 1 {
@@ -126,14 +141,14 @@ impl App {
                 self.error = Some(format!("Failed to load topics: {}", e));
             }
         }
-        
+
         self.loading = false;
     }
 
     async fn load_topic_detail(&mut self, client: &V2exClient, topic_id: i64) {
         self.loading = true;
         self.error = None;
-        
+
         match client.get_topic(topic_id).await {
             Ok(topic) => {
                 self.current_topic = Some(topic);
@@ -143,14 +158,14 @@ impl App {
                 self.error = Some(format!("Failed to load topic: {}", e));
             }
         }
-        
+
         self.loading = false;
     }
 
     async fn load_topic_replies(&mut self, client: &V2exClient, topic_id: i64) {
         self.loading = true;
         self.error = None;
-        
+
         match client.get_topic_replies(topic_id, 1).await {
             Ok(replies) => {
                 self.topic_replies = replies;
@@ -162,14 +177,14 @@ impl App {
                 self.error = Some(format!("Failed to load replies: {}", e));
             }
         }
-        
+
         self.loading = false;
     }
 
     async fn load_notifications(&mut self, client: &V2exClient) {
         self.loading = true;
         self.error = None;
-        
+
         match client.get_notifications(1).await {
             Ok(notifications) => {
                 self.notifications = notifications;
@@ -180,14 +195,14 @@ impl App {
                 self.error = Some(format!("Failed to load notifications: {}", e));
             }
         }
-        
+
         self.loading = false;
     }
 
     async fn load_profile(&mut self, client: &V2exClient) {
         self.loading = true;
         self.error = None;
-        
+
         match client.get_member().await {
             Ok(member) => {
                 self.profile = Some(member);
@@ -197,7 +212,7 @@ impl App {
                 self.error = Some(format!("Failed to load profile: {}", e));
             }
         }
-        
+
         self.loading = false;
     }
 
@@ -219,7 +234,8 @@ impl App {
 
     fn next_notification(&mut self) {
         if !self.notifications.is_empty() {
-            self.selected_notification = (self.selected_notification + 1) % self.notifications.len();
+            self.selected_notification =
+                (self.selected_notification + 1) % self.notifications.len();
         }
     }
 
@@ -237,7 +253,7 @@ impl App {
         self.current_node = node.to_string();
         self.page = 1;
     }
-    
+
     // Scroll methods
     fn scroll_topic_up(&mut self) {
         if self.topic_scroll >= 3 {
@@ -246,18 +262,18 @@ impl App {
             self.topic_scroll = 0;
         }
     }
-    
+
     fn scroll_topic_down(&mut self) {
         self.topic_scroll += 3; // Scroll 3 lines at a time for better performance
     }
-    
+
     fn next_reply(&mut self) {
         if !self.topic_replies.is_empty() {
             self.selected_reply = (self.selected_reply + 1) % self.topic_replies.len();
             self.replies_list_state.select(Some(self.selected_reply));
         }
     }
-    
+
     fn previous_reply(&mut self) {
         if !self.topic_replies.is_empty() {
             self.selected_reply = if self.selected_reply == 0 {
@@ -268,20 +284,20 @@ impl App {
             self.replies_list_state.select(Some(self.selected_reply));
         }
     }
-    
+
     fn reset_scroll(&mut self) {
         self.topic_scroll = 0;
         self.selected_reply = 0;
         self.replies_list_state.select(Some(0));
     }
-    
+
     // Node selection methods
     fn next_node(&mut self) {
         if !self.nodes.is_empty() {
             self.selected_node = (self.selected_node + 1) % self.nodes.len();
         }
     }
-    
+
     fn previous_node(&mut self) {
         if !self.nodes.is_empty() {
             self.selected_node = if self.selected_node == 0 {
@@ -291,27 +307,29 @@ impl App {
             };
         }
     }
-    
+
     fn select_current_node(&mut self) {
         if let Some((node_name, _)) = self.nodes.get(self.selected_node) {
             self.current_node = node_name.clone();
             self.page = 1;
         }
     }
-    
+
     fn find_node_index(&self, node_name: &str) -> Option<usize> {
         self.nodes.iter().position(|(name, _)| name == node_name)
     }
-    
+
     // Find current topic index in the topics list
     fn find_current_topic_index(&self) -> Option<usize> {
         if let Some(current_topic) = &self.current_topic {
-            self.topics.iter().position(|topic| topic.id == current_topic.id)
+            self.topics
+                .iter()
+                .position(|topic| topic.id == current_topic.id)
         } else {
             None
         }
     }
-    
+
     // Switch to next topic in detail view
     async fn switch_to_next_topic(&mut self, client: &V2exClient) {
         if let Some(current_index) = self.find_current_topic_index() {
@@ -327,7 +345,7 @@ impl App {
             }
         }
     }
-    
+
     // Switch to previous topic in detail view
     async fn switch_to_previous_topic(&mut self, client: &V2exClient) {
         if let Some(current_index) = self.find_current_topic_index() {
@@ -347,15 +365,124 @@ impl App {
             }
         }
     }
+
+    // Token input methods
+    fn insert_token_char(&mut self, ch: char) {
+        let byte_pos = self
+            .token_input
+            .char_indices()
+            .nth(self.token_cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(self.token_input.len());
+        self.token_input.insert(byte_pos, ch);
+        self.token_cursor += 1;
+    }
+
+    fn delete_token_char(&mut self) {
+        if self.token_cursor > 0 {
+            let byte_pos = self
+                .token_input
+                .char_indices()
+                .nth(self.token_cursor - 1)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            let next_byte_pos = self
+                .token_input
+                .char_indices()
+                .nth(self.token_cursor)
+                .map(|(i, _)| i)
+                .unwrap_or(self.token_input.len());
+            self.token_input.drain(byte_pos..next_byte_pos);
+            self.token_cursor -= 1;
+        }
+    }
+
+    fn move_token_cursor_left(&mut self) {
+        if self.token_cursor > 0 {
+            self.token_cursor -= 1;
+        }
+    }
+
+    fn move_token_cursor_right(&mut self) {
+        if self.token_cursor < self.token_input.chars().count() {
+            self.token_cursor += 1;
+        }
+    }
+
+    fn save_token(&self) -> Result<()> {
+        let config_dir = V2exClient::config_dir()?;
+        let token_path = config_dir.join("token.txt");
+        std::fs::write(&token_path, self.token_input.trim())
+            .with_context(|| format!("Failed to write token to {:?}", token_path))?;
+        Ok(())
+    }
+
+    // Node manual input methods
+    fn insert_node_char(&mut self, ch: char) {
+        let byte_pos = self
+            .node_manual_input
+            .char_indices()
+            .nth(self.node_manual_cursor)
+            .map(|(i, _)| i)
+            .unwrap_or(self.node_manual_input.len());
+        self.node_manual_input.insert(byte_pos, ch);
+        self.node_manual_cursor += 1;
+    }
+
+    fn delete_node_char(&mut self) {
+        if self.node_manual_cursor > 0 {
+            let byte_pos = self
+                .node_manual_input
+                .char_indices()
+                .nth(self.node_manual_cursor - 1)
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            let next_byte_pos = self
+                .node_manual_input
+                .char_indices()
+                .nth(self.node_manual_cursor)
+                .map(|(i, _)| i)
+                .unwrap_or(self.node_manual_input.len());
+            self.node_manual_input.drain(byte_pos..next_byte_pos);
+            self.node_manual_cursor -= 1;
+        }
+    }
+
+    fn move_node_cursor_left(&mut self) {
+        if self.node_manual_cursor > 0 {
+            self.node_manual_cursor -= 1;
+        }
+    }
+
+    fn move_node_cursor_right(&mut self) {
+        if self.node_manual_cursor < self.node_manual_input.chars().count() {
+            self.node_manual_cursor += 1;
+        }
+    }
+
+    fn toggle_manual_node_mode(&mut self) {
+        self.is_manual_node_mode = !self.is_manual_node_mode;
+    }
+
+    fn select_manual_node(&mut self) {
+        let node_name = self.node_manual_input.trim();
+        if !node_name.is_empty() {
+            self.current_node = node_name.to_string();
+            self.page = 1;
+        }
+    }
+
+    fn reset_node_selection(&mut self) {
+        self.node_manual_input.clear();
+        self.node_manual_cursor = 0;
+        self.is_manual_node_mode = false;
+    }
 }
 
 fn draw_ui(frame: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(0),
-            Constraint::Length(1),
-        ])
+        .constraints([Constraint::Min(0), Constraint::Length(1)])
         .split(frame.size());
 
     match app.view {
@@ -382,12 +509,31 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
                 render_error(frame, chunks[0], error, &app.theme);
             } else if let Some(ref topic) = app.current_topic {
                 if app.show_replies {
+                    let area = chunks[0];
+                    // Use vertical layout when terminal is narrow (< 100 columns)
+                    let is_narrow = area.width < 100;
                     let split_chunks = Layout::default()
-                        .direction(Direction::Horizontal)
+                        .direction(if is_narrow {
+                            Direction::Vertical
+                        } else {
+                            Direction::Horizontal
+                        })
                         .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
-                        .split(chunks[0]);
-                    render_topic_detail(frame, split_chunks[0], topic, app.topic_scroll, &app.theme);
-                    render_replies(frame, split_chunks[1], &app.topic_replies, &mut app.replies_list_state, &app.theme);
+                        .split(area);
+                    render_topic_detail(
+                        frame,
+                        split_chunks[0],
+                        topic,
+                        app.topic_scroll,
+                        &app.theme,
+                    );
+                    render_replies(
+                        frame,
+                        split_chunks[1],
+                        &app.topic_replies,
+                        &mut app.replies_list_state,
+                        &app.theme,
+                    );
                 } else {
                     render_topic_detail(frame, chunks[0], topic, app.topic_scroll, &app.theme);
                 }
@@ -427,6 +573,18 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
                 &app.nodes,
                 app.selected_node,
                 &app.current_node,
+                &app.node_manual_input,
+                app.node_manual_cursor,
+                app.is_manual_node_mode,
+                &app.theme,
+            );
+        }
+        View::TokenInput => {
+            render_token_input(
+                frame,
+                chunks[0],
+                &app.token_input,
+                app.token_cursor,
                 &app.theme,
             );
         }
@@ -435,12 +593,9 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
     render_status_bar(frame, chunks[1], &app.status_message, &app.theme);
 }
 
-async fn run_app(
-    terminal: &mut Terminal<impl Backend>,
-    client: V2exClient,
-) -> Result<()> {
+async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> Result<()> {
     let mut app = App::new();
-    
+
     // Load initial topics
     app.load_topics(&client, false).await;
 
@@ -450,39 +605,83 @@ async fn run_app(
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
                 match key.code {
-                    KeyCode::Char('q') | KeyCode::Esc => {
-                        match app.view {
-                            View::TopicList => break,
-                            View::NodeSelect => {
-                                app.view = View::TopicList;
-                            }
-                            _ => {
-                                app.view = View::TopicList;
-                                app.error = None;
-                            }
+                    KeyCode::Char('q') | KeyCode::Esc => match app.view {
+                        View::TopicList => break,
+                        View::NodeSelect => {
+                            app.view = View::TopicList;
                         }
-                    }
+                        _ => {
+                            app.view = View::TopicList;
+                            app.error = None;
+                        }
+                    },
                     KeyCode::Char('?') => {
                         app.view = View::Help;
                     }
-                    KeyCode::Char('h') | KeyCode::Left => {
-                        match app.view {
-                            View::NodeSelect => {
-                                app.view = View::TopicList;
-                            }
-                            _ => {
-                                if app.view != View::TopicList {
+                    KeyCode::Char('h') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('h');
+                        } else {
+                            match app.view {
+                                View::NodeSelect => {
                                     app.view = View::TopicList;
-                                    app.error = None;
+                                }
+                                _ => {
+                                    if app.view != View::TopicList {
+                                        app.view = View::TopicList;
+                                        app.error = None;
+                                    }
                                 }
                             }
                         }
                     }
-                    KeyCode::Char('n') | KeyCode::Down => {
+                    KeyCode::Left => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.move_node_cursor_left();
+                        } else {
+                            match app.view {
+                                View::NodeSelect => {
+                                    app.view = View::TopicList;
+                                }
+                                _ => {
+                                    if app.view != View::TopicList {
+                                        app.view = View::TopicList;
+                                        app.error = None;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Char('n') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('n');
+                        } else {
+                            match app.view {
+                                View::TopicList => app.next_topic(),
+                                View::Notifications => app.next_notification(),
+                                View::NodeSelect => app.next_node(),
+                                View::TopicDetail => {
+                                    if app.show_replies && !app.topic_replies.is_empty() {
+                                        app.next_reply();
+                                    } else {
+                                        app.scroll_topic_down();
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Down => {
                         match app.view {
                             View::TopicList => app.next_topic(),
                             View::Notifications => app.next_notification(),
-                            View::NodeSelect => app.next_node(),
+                            View::NodeSelect => {
+                                if app.is_manual_node_mode {
+                                    // Do nothing in manual mode
+                                } else {
+                                    app.next_node();
+                                }
+                            }
                             View::TopicDetail => {
                                 if app.show_replies && !app.topic_replies.is_empty() {
                                     app.next_reply();
@@ -493,11 +692,36 @@ async fn run_app(
                             _ => {}
                         }
                     }
-                    KeyCode::Char('p') | KeyCode::Up => {
+                    KeyCode::Char('p') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('p');
+                        } else {
+                            match app.view {
+                                View::TopicList => app.previous_topic(),
+                                View::Notifications => app.previous_notification(),
+                                View::NodeSelect => app.previous_node(),
+                                View::TopicDetail => {
+                                    if app.show_replies && !app.topic_replies.is_empty() {
+                                        app.previous_reply();
+                                    } else {
+                                        app.scroll_topic_up();
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Up => {
                         match app.view {
                             View::TopicList => app.previous_topic(),
                             View::Notifications => app.previous_notification(),
-                            View::NodeSelect => app.previous_node(),
+                            View::NodeSelect => {
+                                if app.is_manual_node_mode {
+                                    // Do nothing in manual mode
+                                } else {
+                                    app.previous_node();
+                                }
+                            }
                             View::TopicDetail => {
                                 if app.show_replies && !app.topic_replies.is_empty() {
                                     app.previous_reply();
@@ -508,7 +732,115 @@ async fn run_app(
                             _ => {}
                         }
                     }
-                    KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+                    KeyCode::Char('l') => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('l');
+                        } else {
+                            match app.view {
+                                View::TopicList => {
+                                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                                        let topic_id = topic.id;
+                                        app.view = View::TopicDetail;
+                                        app.show_replies = true;
+                                        app.load_topic_detail(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id).await;
+                                    }
+                                }
+                                View::Notifications => {
+                                    if let Some(notification) =
+                                        app.notifications.get(app.selected_notification)
+                                    {
+                                        let topic_id = notification.extract_topic_id();
+                                        let reply_id = notification.extract_reply_id();
+
+                                        if let Some(topic_id) = topic_id {
+                                            app.view = View::TopicDetail;
+                                            app.show_replies = true;
+                                            app.load_topic_detail(&client, topic_id).await;
+                                            app.load_topic_replies(&client, topic_id).await;
+
+                                            // Update status message
+                                            if let Some(reply_id) = reply_id {
+                                                app.status_message = format!(
+                                                    "Jumping to topic {} (reply #{})",
+                                                    topic_id, reply_id
+                                                );
+                                            } else {
+                                                app.status_message =
+                                                    format!("Jumping to topic {}", topic_id);
+                                            }
+                                        } else {
+                                            app.status_message =
+                                                "No topic link found in this notification"
+                                                    .to_string();
+                                        }
+                                    }
+                                }
+                                View::NodeSelect => {
+                                    app.select_current_node();
+                                    app.reset_node_selection();
+                                    app.view = View::TopicList;
+                                    app.load_topics(&client, false).await;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Right => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.move_node_cursor_right();
+                        } else {
+                            match app.view {
+                                View::TopicList => {
+                                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                                        let topic_id = topic.id;
+                                        app.view = View::TopicDetail;
+                                        app.show_replies = true;
+                                        app.load_topic_detail(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id).await;
+                                    }
+                                }
+                                View::Notifications => {
+                                    if let Some(notification) =
+                                        app.notifications.get(app.selected_notification)
+                                    {
+                                        let topic_id = notification.extract_topic_id();
+                                        let reply_id = notification.extract_reply_id();
+
+                                        if let Some(topic_id) = topic_id {
+                                            app.view = View::TopicDetail;
+                                            app.show_replies = true;
+                                            app.load_topic_detail(&client, topic_id).await;
+                                            app.load_topic_replies(&client, topic_id).await;
+
+                                            // Update status message
+                                            if let Some(reply_id) = reply_id {
+                                                app.status_message = format!(
+                                                    "Jumping to topic {} (reply #{})",
+                                                    topic_id, reply_id
+                                                );
+                                            } else {
+                                                app.status_message =
+                                                    format!("Jumping to topic {}", topic_id);
+                                            }
+                                        } else {
+                                            app.status_message =
+                                                "No topic link found in this notification"
+                                                    .to_string();
+                                        }
+                                    }
+                                }
+                                View::NodeSelect => {
+                                    app.select_current_node();
+                                    app.reset_node_selection();
+                                    app.view = View::TopicList;
+                                    app.load_topics(&client, false).await;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    KeyCode::Enter => {
                         match app.view {
                             View::TopicList => {
                                 if let Some(topic) = app.topics.get(app.selected_topic) {
@@ -520,128 +852,218 @@ async fn run_app(
                                 }
                             }
                             View::Notifications => {
-                                if let Some(notification) = app.notifications.get(app.selected_notification) {
+                                if let Some(notification) =
+                                    app.notifications.get(app.selected_notification)
+                                {
                                     let topic_id = notification.extract_topic_id();
                                     let reply_id = notification.extract_reply_id();
-                                    
+
                                     if let Some(topic_id) = topic_id {
                                         app.view = View::TopicDetail;
                                         app.show_replies = true;
                                         app.load_topic_detail(&client, topic_id).await;
                                         app.load_topic_replies(&client, topic_id).await;
-                                        
+
                                         // Update status message
                                         if let Some(reply_id) = reply_id {
-                                            app.status_message = format!("Jumping to topic {} (reply #{})", topic_id, reply_id);
+                                            app.status_message = format!(
+                                                "Jumping to topic {} (reply #{})",
+                                                topic_id, reply_id
+                                            );
                                         } else {
-                                            app.status_message = format!("Jumping to topic {}", topic_id);
+                                            app.status_message =
+                                                format!("Jumping to topic {}", topic_id);
                                         }
                                     } else {
-                                        app.status_message = "No topic link found in this notification".to_string();
+                                        app.status_message =
+                                            "No topic link found in this notification".to_string();
                                     }
                                 }
                             }
                             View::NodeSelect => {
-                                app.select_current_node();
-                                app.view = View::TopicList;
-                                app.load_topics(&client, false).await;
+                                if app.is_manual_node_mode {
+                                    app.select_manual_node();
+                                    app.reset_node_selection();
+                                    app.view = View::TopicList;
+                                    app.load_topics(&client, false).await;
+                                } else {
+                                    app.select_current_node();
+                                    app.reset_node_selection();
+                                    app.view = View::TopicList;
+                                    app.load_topics(&client, false).await;
+                                }
                             }
                             _ => {}
                         }
                     }
                     KeyCode::Char('r') => {
-                        match app.view {
-                            View::TopicList => app.load_topics(&client, false).await,
-                            View::TopicDetail => {
-                                if let Some(ref topic) = app.current_topic {
-                                    let topic_id = topic.id;
-                                    app.load_topic_detail(&client, topic_id).await;
-                                    app.load_topic_replies(&client, topic_id).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('r');
+                        } else {
+                            match app.view {
+                                View::TopicList => app.load_topics(&client, false).await,
+                                View::TopicDetail => {
+                                    if let Some(ref topic) = app.current_topic {
+                                        let topic_id = topic.id;
+                                        app.load_topic_detail(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id).await;
+                                    }
                                 }
+                                View::Notifications => app.load_notifications(&client).await,
+                                View::Profile => app.load_profile(&client).await,
+                                _ => {}
                             }
-                            View::Notifications => app.load_notifications(&client).await,
-                            View::Profile => app.load_profile(&client).await,
-                            _ => {}
                         }
                     }
                     KeyCode::Char('m') => {
-                        app.view = View::Notifications;
-                        app.load_notifications(&client).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('m');
+                        } else {
+                            app.view = View::Notifications;
+                            app.load_notifications(&client).await;
+                        }
                     }
                     KeyCode::Char('u') => {
-                        app.view = View::Profile;
-                        app.load_profile(&client).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('u');
+                        } else {
+                            app.view = View::Profile;
+                            app.load_profile(&client).await;
+                        }
                     }
                     KeyCode::Char('s') => {
-                        app.view = View::NodeSelect;
-                        // Find current node in the list
-                        if let Some(index) = app.find_node_index(&app.current_node) {
-                            app.selected_node = index;
+                        match app.view {
+                            View::NodeSelect => {
+                                if app.is_manual_node_mode {
+                                    // In manual mode, insert 's' as character
+                                    app.insert_node_char('s');
+                                } else {
+                                    // Already in node select, toggle manual mode
+                                    app.toggle_manual_node_mode();
+                                }
+                            }
+                            _ => {
+                                app.view = View::NodeSelect;
+                                app.reset_node_selection();
+                                // Find current node in the list
+                                if let Some(index) = app.find_node_index(&app.current_node) {
+                                    app.selected_node = index;
+                                }
+                            }
+                        }
+                    }
+                    KeyCode::Tab => {
+                        if app.view == View::NodeSelect {
+                            app.toggle_manual_node_mode();
                         }
                     }
                     KeyCode::Char('t') => {
-                        match app.view {
-                            View::TopicList => {
-                                if let Some(topic) = app.topics.get(app.selected_topic) {
-                                    let topic_id = topic.id;
-                                    app.view = View::TopicDetail;
-                                    app.show_replies = true;
-                                    app.load_topic_detail(&client, topic_id).await;
-                                    app.load_topic_replies(&client, topic_id).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('t');
+                        } else {
+                            match app.view {
+                                View::TopicList => {
+                                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                                        let topic_id = topic.id;
+                                        app.view = View::TopicDetail;
+                                        app.show_replies = true;
+                                        app.load_topic_detail(&client, topic_id).await;
+                                        app.load_topic_replies(&client, topic_id).await;
+                                    }
                                 }
+                                View::TopicDetail => {
+                                    app.show_replies = !app.show_replies;
+                                    app.reset_scroll();
+                                }
+                                _ => {}
                             }
-                            View::TopicDetail => {
-                                app.show_replies = !app.show_replies;
-                                app.reset_scroll();
-                            }
-                            _ => {}
                         }
                     }
                     KeyCode::Char('N') => {
-                        if app.view == View::TopicDetail {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('N');
+                        } else if app.view == View::TopicDetail {
                             app.switch_to_next_topic(&client).await;
                         }
                     }
                     KeyCode::Char('P') => {
-                        if app.view == View::TopicDetail {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('P');
+                        } else if app.view == View::TopicDetail {
                             app.switch_to_previous_topic(&client).await;
                         }
                     }
                     KeyCode::Char('1') => {
-                        app.switch_node("python");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('1');
+                        } else {
+                            app.switch_node("python");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('2') => {
-                        app.switch_node("programmer");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('2');
+                        } else {
+                            app.switch_node("programmer");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('3') => {
-                        app.switch_node("share");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('3');
+                        } else {
+                            app.switch_node("share");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('4') => {
-                        app.switch_node("create");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('4');
+                        } else {
+                            app.switch_node("create");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('5') => {
-                        app.switch_node("jobs");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('5');
+                        } else {
+                            app.switch_node("jobs");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('6') => {
-                        app.switch_node("go");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('6');
+                        } else {
+                            app.switch_node("go");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('7') => {
-                        app.switch_node("rust");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('7');
+                        } else {
+                            app.switch_node("rust");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('8') => {
-                        app.switch_node("javascript");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('8');
+                        } else {
+                            app.switch_node("javascript");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::Char('9') => {
-                        app.switch_node("linux");
-                        app.load_topics(&client, false).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('9');
+                        } else {
+                            app.switch_node("linux");
+                            app.load_topics(&client, false).await;
+                        }
                     }
                     KeyCode::PageDown => {
                         match app.view {
@@ -652,7 +1074,8 @@ async fn run_app(
                             View::TopicDetail => {
                                 if app.show_replies && !app.topic_replies.is_empty() {
                                     // Move 5 replies forward
-                                    app.selected_reply = (app.selected_reply + 5).min(app.topic_replies.len() - 1);
+                                    app.selected_reply =
+                                        (app.selected_reply + 5).min(app.topic_replies.len() - 1);
                                 } else {
                                     app.topic_scroll += 15; // Scroll 15 lines
                                 }
@@ -665,7 +1088,7 @@ async fn run_app(
                             View::TopicList => {
                                 if app.page > 1 {
                                     app.page -= 1;
-                                app.load_topics(&client, false).await;
+                                    app.load_topics(&client, false).await;
                                 }
                             }
                             View::TopicDetail => {
@@ -688,36 +1111,72 @@ async fn run_app(
                         }
                     }
                     KeyCode::Char('+') => {
-                        match app.view {
-                            View::TopicList => {
-                                app.page += 1;
-                                app.load_topics(&client, true).await;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('+');
+                        } else {
+                            match app.view {
+                                View::TopicList => {
+                                    app.page += 1;
+                                    app.load_topics(&client, true).await;
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
                     KeyCode::Char('<') => {
-                        match app.view {
-                            View::TopicList => app.selected_topic = 0,
-                            View::Notifications => app.selected_notification = 0,
-                            _ => {}
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('<');
+                        } else {
+                            match app.view {
+                                View::TopicList => app.selected_topic = 0,
+                                View::Notifications => app.selected_notification = 0,
+                                View::TopicDetail => {
+                                    if app.show_replies && !app.topic_replies.is_empty() {
+                                        app.selected_reply = 0;
+                                        app.replies_list_state.select(Some(0));
+                                    }
+                                }
+                                _ => {}
+                            }
                         }
                     }
                     KeyCode::Char('>') => {
-                        match app.view {
-                            View::TopicList => {
-                                if !app.topics.is_empty() {
-                                    app.selected_topic = app.topics.len() - 1;
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char('>');
+                        } else {
+                            match app.view {
+                                View::TopicList => {
+                                    if !app.topics.is_empty() {
+                                        app.selected_topic = app.topics.len() - 1;
+                                    }
                                 }
-                            }
-                            View::Notifications => {
-                                if !app.notifications.is_empty() {
-                                    app.selected_notification = app.notifications.len() - 1;
+                                View::Notifications => {
+                                    if !app.notifications.is_empty() {
+                                        app.selected_notification = app.notifications.len() - 1;
+                                    }
                                 }
+                                View::TopicDetail => {
+                                    if app.show_replies && !app.topic_replies.is_empty() {
+                                        app.selected_reply = app.topic_replies.len() - 1;
+                                        app.replies_list_state.select(Some(app.selected_reply));
+                                    }
+                                }
+                                _ => {}
                             }
-                            _ => {}
                         }
                     }
+                    KeyCode::Char(ch) => {
+                        // Handle character input for manual node mode
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.insert_node_char(ch);
+                        }
+                    }
+                    KeyCode::Backspace => {
+                        if app.view == View::NodeSelect && app.is_manual_node_mode {
+                            app.delete_node_char();
+                        }
+                    }
+
                     _ => {}
                 }
             }
@@ -749,7 +1208,7 @@ fn print_help() {
     println!("  r              Refresh");
     println!("  m              Notifications (messages)");
     println!("  u              Profile (user)");
-    println!("  s              Select node from menu");
+    println!("  s              Select node from menu (Tab: manual input)");
     println!("  1-9            Quick switch nodes (1:python, etc.)");
     println!("  t              Open topic / Toggle replies view");
     println!("  +              Load more topics");
@@ -764,11 +1223,66 @@ fn print_version() {
     println!("v2ex-tui 0.1.0");
 }
 
+async fn run_token_input(terminal: &mut Terminal<impl Backend>) -> Result<Option<String>> {
+    let mut app = App::new();
+    app.view = View::TokenInput;
+    app.status_message = "Enter your V2EX token".to_string();
+
+    loop {
+        terminal.draw(|frame| draw_ui(frame, &mut app))?;
+
+        if let Event::Key(key) = event::read()? {
+            if key.kind == KeyEventKind::Press {
+                match key.code {
+                    KeyCode::Char('c')
+                        if key
+                            .modifiers
+                            .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                    {
+                        return Ok(None);
+                    }
+                    KeyCode::Esc => {
+                        return Ok(None);
+                    }
+                    KeyCode::Enter => {
+                        if !app.token_input.trim().is_empty() {
+                            // Try to save the token
+                            match app.save_token() {
+                                Ok(_) => {
+                                    return Ok(Some(app.token_input.trim().to_string()));
+                                }
+                                Err(e) => {
+                                    app.status_message = format!("Error saving token: {}", e);
+                                }
+                            }
+                        } else {
+                            app.status_message = "Token cannot be empty".to_string();
+                        }
+                    }
+                    KeyCode::Char(ch) => {
+                        app.insert_token_char(ch);
+                    }
+                    KeyCode::Backspace => {
+                        app.delete_token_char();
+                    }
+                    KeyCode::Left => {
+                        app.move_token_cursor_left();
+                    }
+                    KeyCode::Right => {
+                        app.move_token_cursor_right();
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     // Parse command line arguments
     let args: Vec<String> = std::env::args().collect();
-    
+
     for arg in &args[1..] {
         match arg.as_str() {
             "-h" | "--help" => {
@@ -787,18 +1301,40 @@ async fn main() -> Result<()> {
         }
     }
 
-    // Load token
+    // Try to load token
     let token = match V2exClient::load_token() {
         Ok(t) => t,
         Err(_) => {
-            eprintln!("Error: V2EX token not found.");
-            eprintln!("Please create a token at https://www.v2ex.com/settings/tokens");
-            eprintln!("Then save it to: ~/.config/v2ex/token.txt");
-            std::process::exit(1);
+            // Token not found, setup terminal and show token input view
+            enable_raw_mode()?;
+            let mut stdout = io::stdout();
+            execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+            let backend = CrosstermBackend::new(stdout);
+            let mut terminal = Terminal::new(backend)?;
+
+            // Run token input UI
+            let token_result = run_token_input(&mut terminal).await;
+
+            // Restore terminal
+            disable_raw_mode()?;
+            execute!(
+                terminal.backend_mut(),
+                LeaveAlternateScreen,
+                DisableMouseCapture
+            )?;
+            terminal.show_cursor()?;
+
+            match token_result? {
+                Some(t) => t,
+                None => {
+                    println!("Token input cancelled.");
+                    std::process::exit(1);
+                }
+            }
         }
     };
 
-    let client = V2exClient::new(token);
+    let client = V2exClient::new(token.clone());
 
     // Test API connection before starting TUI
     match client.get_member().await {
@@ -806,7 +1342,15 @@ async fn main() -> Result<()> {
             println!("Connected to V2EX as: {}", member.username);
         }
         Err(e) => {
+            // Token is invalid, remove it
+            if let Ok(config_dir) = V2exClient::config_dir() {
+                let token_path = config_dir.join("token.txt");
+                let _ = std::fs::remove_file(&token_path);
+            }
             eprintln!("Error: Failed to connect to V2EX API: {}", e);
+            eprintln!(
+                "The token has been removed. Please run the application again with a valid token."
+            );
             std::process::exit(1);
         }
     }

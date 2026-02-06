@@ -1,8 +1,7 @@
-
-use std::path::PathBuf;
-use anyhow::{Result, Context};
+use anyhow::{Context, Result};
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 const BASE_URL: &str = "https://www.v2ex.com/api/v2";
 
@@ -68,17 +67,26 @@ pub struct Topic {
 impl Topic {
     /// Get the node name for display
     pub fn node_name(&self) -> &str {
-        self.node.as_ref().map(|n| n.name.as_str()).unwrap_or("unknown")
+        self.node
+            .as_ref()
+            .map(|n| n.name.as_str())
+            .unwrap_or("unknown")
     }
 
     /// Get the node title for display
     pub fn node_title(&self) -> &str {
-        self.node.as_ref().map(|n| n.title.as_str()).unwrap_or("Unknown")
+        self.node
+            .as_ref()
+            .map(|n| n.title.as_str())
+            .unwrap_or("Unknown")
     }
 
     /// Get the member username for display
     pub fn author_name(&self) -> &str {
-        self.member.as_ref().map(|m| m.username.as_str()).unwrap_or("Unknown")
+        self.member
+            .as_ref()
+            .map(|m| m.username.as_str())
+            .unwrap_or("Unknown")
     }
 }
 
@@ -120,14 +128,16 @@ impl NotificationPayload {
             NotificationPayload::Object { body, .. } => body.clone(),
         }
     }
-    
+
     pub fn extract_reply_id(&self) -> Option<i64> {
         match self {
             NotificationPayload::String(s) => {
                 // Try to extract reply ID from format like "@chingyat #20"
                 if let Some(hash_pos) = s.find('#') {
                     let after_hash = &s[hash_pos + 1..];
-                    let end_pos = after_hash.find(|c: char| !c.is_digit(10)).unwrap_or(after_hash.len());
+                    let end_pos = after_hash
+                        .find(|c: char| !c.is_digit(10))
+                        .unwrap_or(after_hash.len());
                     after_hash[..end_pos].parse().ok()
                 } else {
                     None
@@ -143,22 +153,24 @@ impl Notification {
     pub fn extract_topic_id(&self) -> Option<i64> {
         // Look for pattern like /t/1180785 in the text
         let text = &self.text;
-        
+
         // Find /t/ pattern
         if let Some(t_pos) = text.find("/t/") {
             let after_t = &text[t_pos + 3..];
-            let end_pos = after_t.find(|c: char| !c.is_digit(10)).unwrap_or(after_t.len());
+            let end_pos = after_t
+                .find(|c: char| !c.is_digit(10))
+                .unwrap_or(after_t.len());
             after_t[..end_pos].parse().ok()
         } else {
             None
         }
     }
-    
+
     /// Extract reply ID from notification
     pub fn extract_reply_id(&self) -> Option<i64> {
         self.payload.as_ref().and_then(|p| p.extract_reply_id())
     }
-    
+
     /// Check if this notification has a topic link
     pub fn has_topic_link(&self) -> bool {
         self.extract_topic_id().is_some()
@@ -218,8 +230,7 @@ impl V2exClient {
     }
 
     pub fn config_dir() -> Result<PathBuf> {
-        let base_dirs = BaseDirs::new()
-            .context("Failed to get base directories")?;
+        let base_dirs = BaseDirs::new().context("Failed to get base directories")?;
         let config_dir = base_dirs.config_dir().join("v2ex");
         std::fs::create_dir_all(&config_dir)?;
         Ok(config_dir)
@@ -231,7 +242,8 @@ impl V2exClient {
         endpoint: &str,
     ) -> Result<ApiResponse<T>> {
         let url = format!("{}/{}", BASE_URL, endpoint);
-        let response = self.client
+        let response = self
+            .client
             .request(method, &url)
             .header("Authorization", format!("Bearer {}", self.token))
             .send()
@@ -263,17 +275,15 @@ impl V2exClient {
 
     pub async fn get_notifications(&self, page: i32) -> Result<Vec<Notification>> {
         let endpoint = format!("notifications?p={}", page);
-        let response: ApiResponse<Vec<Notification>> = self
-            .request(reqwest::Method::GET, &endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Notification>> =
+            self.request(reqwest::Method::GET, &endpoint).await?;
         Ok(response.result.unwrap_or_default())
     }
 
     pub async fn delete_notification(&self, notification_id: i64) -> Result<()> {
         let endpoint = format!("notifications/{}", notification_id);
-        let _: ApiResponse<serde_json::Value> = self
-            .request(reqwest::Method::DELETE, &endpoint)
-            .await?;
+        let _: ApiResponse<serde_json::Value> =
+            self.request(reqwest::Method::DELETE, &endpoint).await?;
         Ok(())
     }
 
@@ -285,9 +295,8 @@ impl V2exClient {
 
     pub async fn get_node_topics(&self, node_name: &str, page: i32) -> Result<Vec<Topic>> {
         let endpoint = format!("nodes/{}/topics?p={}", node_name, page);
-        let response: ApiResponse<Vec<Topic>> = self
-            .request(reqwest::Method::GET, &endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Topic>> =
+            self.request(reqwest::Method::GET, &endpoint).await?;
         Ok(response.result.unwrap_or_default())
     }
 
@@ -299,9 +308,8 @@ impl V2exClient {
 
     pub async fn get_topic_replies(&self, topic_id: i64, page: i32) -> Result<Vec<Reply>> {
         let endpoint = format!("topics/{}/replies?p={}", topic_id, page);
-        let response: ApiResponse<Vec<Reply>> = self
-            .request(reqwest::Method::GET, &endpoint)
-            .await?;
+        let response: ApiResponse<Vec<Reply>> =
+            self.request(reqwest::Method::GET, &endpoint).await?;
         Ok(response.result.unwrap_or_default())
     }
 }

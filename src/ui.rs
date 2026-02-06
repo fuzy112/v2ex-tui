@@ -1,11 +1,11 @@
+use crate::api::{Member, Notification, Reply, Topic};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap, ListState},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame,
 };
-use crate::api::{Topic, Reply, Notification, Member};
 
 #[derive(Debug)]
 pub struct Theme {
@@ -60,6 +60,60 @@ pub fn render_topic_list(
     current_node: &str,
     theme: &Theme,
 ) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(area);
+
+    // Header with node switch key binds
+    let is_current = |node: &str| node == current_node;
+    let node_style = |node: &str| {
+        if is_current(node) {
+            Style::default()
+                .fg(theme.primary)
+                .add_modifier(Modifier::BOLD | Modifier::REVERSED)
+        } else {
+            Style::default().fg(theme.foreground)
+        }
+    };
+    let key_style = |node: &str| {
+        if is_current(node) {
+            Style::default()
+                .fg(theme.background)
+                .bg(theme.primary)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(theme.accent)
+        }
+    };
+
+    let header_spans = vec![
+        Span::styled("Nodes: ", Style::default().fg(theme.muted)),
+        Span::styled("1", key_style("python")),
+        Span::styled(":python ", node_style("python")),
+        Span::styled("2", key_style("programmer")),
+        Span::styled(":programmer ", node_style("programmer")),
+        Span::styled("3", key_style("share")),
+        Span::styled(":share ", node_style("share")),
+        Span::styled("4", key_style("create")),
+        Span::styled(":create ", node_style("create")),
+        Span::styled("5", key_style("jobs")),
+        Span::styled(":jobs ", node_style("jobs")),
+        Span::styled("6", key_style("go")),
+        Span::styled(":go ", node_style("go")),
+        Span::styled("7", key_style("rust")),
+        Span::styled(":rust ", node_style("rust")),
+        Span::styled("8", key_style("javascript")),
+        Span::styled(":js ", node_style("javascript")),
+        Span::styled("9", key_style("linux")),
+        Span::styled(":linux ", node_style("linux")),
+        Span::styled("s", Style::default().fg(theme.accent)),
+        Span::styled(":more", Style::default().fg(theme.foreground)),
+    ];
+    let header =
+        Paragraph::new(Line::from(header_spans)).style(Style::default().bg(theme.background));
+    frame.render_widget(header, chunks[0]);
+
     let items: Vec<ListItem> = topics
         .iter()
         .enumerate()
@@ -101,7 +155,7 @@ pub fn render_topic_list(
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-    frame.render_widget(list, area);
+    frame.render_widget(list, chunks[1]);
 }
 
 pub fn render_topic_detail(
@@ -113,27 +167,32 @@ pub fn render_topic_detail(
 ) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(4),
-            Constraint::Min(5),
-        ])
+        .constraints([Constraint::Length(4), Constraint::Min(5)])
         .split(area);
 
     // Header
     let author_name = topic.author_name();
     let node_name = topic.node_title();
-    
+
     let header_lines = vec![
         Line::from(vec![
             Span::styled("Title: ", Style::default().fg(theme.primary)),
-            Span::styled(&topic.title, Style::default().fg(theme.foreground).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                &topic.title,
+                Style::default()
+                    .fg(theme.foreground)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]),
         Line::from(vec![
             Span::styled("Author: ", Style::default().fg(theme.primary)),
             Span::styled(author_name, Style::default().fg(theme.accent)),
             Span::styled(" | Node: ", Style::default().fg(theme.muted)),
             Span::styled(node_name, Style::default().fg(theme.secondary)),
-            Span::styled(format!(" | Replies: {}", topic.replies), Style::default().fg(theme.muted)),
+            Span::styled(
+                format!(" | Replies: {}", topic.replies),
+                Style::default().fg(theme.muted),
+            ),
         ]),
         Line::from(vec![
             Span::styled("URL: ", Style::default().fg(theme.primary)),
@@ -142,20 +201,19 @@ pub fn render_topic_detail(
         Line::from(""),
     ];
 
-    let header = Paragraph::new(Text::from(header_lines))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.primary))
-                .title(" Topic "),
-        );
+    let header = Paragraph::new(Text::from(header_lines)).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary))
+            .title(" Topic "),
+    );
 
     frame.render_widget(header, chunks[0]);
 
     // Content
     let content = topic.content.as_deref().unwrap_or("No content");
     let content_text = html2text::from_read(content.as_bytes(), area.width as usize);
-    
+
     let content_para = Paragraph::new(content_text)
         .block(
             Block::default()
@@ -182,52 +240,67 @@ pub fn render_replies(
         .map(|(index, reply)| {
             let is_selected = list_state.selected() == Some(index);
             let item_style = if is_selected {
-                Style::default()
-                    .bg(theme.primary)
-                    .fg(theme.background)
+                Style::default().bg(theme.primary).fg(theme.background)
             } else {
                 Style::default()
             };
-            
+
             let content_text = reply.content.as_deref().unwrap_or("No content");
             let content = html2text::from_read(
                 content_text.as_bytes(),
                 area.width.saturating_sub(4) as usize,
             );
-            
+
             let lines: Vec<Line> = content
                 .lines()
                 .map(|line| {
                     if is_selected {
-                        Line::styled(line.to_string(), Style::default().bg(theme.primary).fg(theme.background))
+                        Line::styled(
+                            line.to_string(),
+                            Style::default().bg(theme.primary).fg(theme.background),
+                        )
                     } else {
                         Line::from(line.to_string())
                     }
                 })
                 .collect();
 
-            let author_name = reply.member.as_ref().map(|m| m.username.as_str()).unwrap_or("Unknown");
+            let author_name = reply
+                .member
+                .as_ref()
+                .map(|m| m.username.as_str())
+                .unwrap_or("Unknown");
             let header = Line::from(vec![
                 Span::styled(
                     format!("{:3}. ", index + 1),
                     if is_selected {
-                        Style::default().fg(theme.background).add_modifier(Modifier::BOLD | Modifier::REVERSED)
+                        Style::default()
+                            .fg(theme.background)
+                            .add_modifier(Modifier::BOLD | Modifier::REVERSED)
                     } else {
-                        Style::default().fg(theme.primary).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(theme.primary)
+                            .add_modifier(Modifier::BOLD)
                     },
                 ),
                 Span::styled(
                     format!("@{} ", author_name),
                     if is_selected {
-                        Style::default().fg(theme.background).add_modifier(Modifier::BOLD | Modifier::REVERSED)
+                        Style::default()
+                            .fg(theme.background)
+                            .add_modifier(Modifier::BOLD | Modifier::REVERSED)
                     } else {
-                        Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                        Style::default()
+                            .fg(theme.accent)
+                            .add_modifier(Modifier::BOLD)
                     },
                 ),
                 Span::styled(
                     format!("(ID: {}) ", reply.id),
                     if is_selected {
-                        Style::default().fg(theme.background).add_modifier(Modifier::REVERSED)
+                        Style::default()
+                            .fg(theme.background)
+                            .add_modifier(Modifier::REVERSED)
                     } else {
                         Style::default().fg(theme.muted)
                     },
@@ -237,9 +310,7 @@ pub fn render_replies(
             let mut all_lines = vec![header, Line::from("")];
             all_lines.extend(lines);
             all_lines.push(Line::from(""));
-            all_lines.push(Line::from(
-                "─".repeat(area.width as usize)
-            ));
+            all_lines.push(Line::from("─".repeat(area.width as usize)));
 
             ListItem::new(Text::from(all_lines))
         })
@@ -250,7 +321,11 @@ pub fn render_replies(
             Block::default()
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(theme.secondary))
-                .title(format!(" Replies [{}/{}] ", list_state.selected().map(|s| s + 1).unwrap_or(0), replies.len())),
+                .title(format!(
+                    " Replies [{}/{}] ",
+                    list_state.selected().map(|s| s + 1).unwrap_or(0),
+                    replies.len()
+                )),
         )
         .highlight_style(Style::default().bg(theme.primary).fg(theme.background))
         .start_corner(ratatui::layout::Corner::TopLeft);
@@ -270,9 +345,7 @@ pub fn render_notifications(
         .enumerate()
         .map(|(i, notif)| {
             let style = if i == selected {
-                Style::default()
-                    .bg(theme.primary)
-                    .fg(theme.background)
+                Style::default().bg(theme.primary).fg(theme.background)
             } else {
                 Style::default().fg(theme.foreground)
             };
@@ -280,14 +353,19 @@ pub fn render_notifications(
             let raw_text = notif.text.clone();
             // Convert HTML to plain text
             let text = html2text::from_read(raw_text.as_bytes(), 80);
-            
-            let body = notif.payload
+
+            let body = notif
+                .payload
                 .as_ref()
                 .and_then(|p| p.extract_body())
                 .map(|b| format!(" - {}", b))
                 .unwrap_or_default();
 
-            let author_name = notif.member.as_ref().map(|m| m.username.as_str()).unwrap_or("Unknown");
+            let author_name = notif
+                .member
+                .as_ref()
+                .map(|m| m.username.as_str())
+                .unwrap_or("Unknown");
             let line = Line::from(vec![
                 Span::styled(
                     format!("[{}] ", author_name),
@@ -300,13 +378,12 @@ pub fn render_notifications(
         })
         .collect();
 
-    let list = List::new(items)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.primary))
-                .title(format!(" Notifications [{}] ", notifications.len())),
-        );
+    let list = List::new(items).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary))
+            .title(format!(" Notifications [{}] ", notifications.len())),
+    );
 
     frame.render_widget(list, area);
 }
@@ -317,13 +394,22 @@ pub fn render_node_select(
     nodes: &[(String, String)],
     selected: usize,
     current_node: &str,
+    manual_input: &str,
+    cursor_position: usize,
+    is_manual_mode: bool,
     theme: &Theme,
 ) {
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(3)])
+        .split(area);
+
+    // Node list
     let items: Vec<ListItem> = nodes
         .iter()
         .enumerate()
         .map(|(i, (name, title))| {
-            let style = if i == selected {
+            let style = if i == selected && !is_manual_mode {
                 Style::default()
                     .bg(theme.primary)
                     .fg(theme.background)
@@ -337,15 +423,9 @@ pub fn render_node_select(
             };
 
             let line = Line::from(vec![
-                Span::styled(
-                    format!("{:2}. ", i + 1),
-                    Style::default().fg(theme.muted),
-                ),
+                Span::styled(format!("{:2}. ", i + 1), Style::default().fg(theme.muted)),
                 Span::styled(title.to_string(), style),
-                Span::styled(
-                    format!(" ({})", name),
-                    Style::default().fg(theme.secondary),
-                ),
+                Span::styled(format!(" ({})", name), Style::default().fg(theme.secondary)),
             ]);
 
             ListItem::new(line)
@@ -361,19 +441,57 @@ pub fn render_node_select(
         )
         .highlight_style(Style::default().add_modifier(Modifier::BOLD));
 
-    frame.render_widget(list, area);
+    frame.render_widget(list, chunks[0]);
+
+    // Manual input field
+    let mut input_spans = vec![Span::styled("Node: ", Style::default().fg(theme.primary))];
+
+    let input_len = manual_input.chars().count();
+    for (i, ch) in manual_input.chars().enumerate() {
+        if is_manual_mode && i == cursor_position {
+            input_spans.push(Span::styled(
+                ch.to_string(),
+                Style::default().bg(theme.primary).fg(theme.background),
+            ));
+        } else {
+            input_spans.push(Span::styled(
+                ch.to_string(),
+                Style::default().fg(theme.foreground),
+            ));
+        }
+    }
+
+    if is_manual_mode && cursor_position == input_len {
+        input_spans.push(Span::styled(
+            " ",
+            Style::default().bg(theme.primary).fg(theme.background),
+        ));
+    }
+
+    let input_widget = Paragraph::new(Line::from(input_spans)).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(if is_manual_mode {
+                Style::default().fg(theme.accent)
+            } else {
+                Style::default().fg(theme.muted)
+            })
+            .title(" Manual Input (Tab to switch) "),
+    );
+
+    frame.render_widget(input_widget, chunks[1]);
 }
 
-pub fn render_profile(
-    frame: &mut Frame,
-    area: Rect,
-    member: &Member,
-    theme: &Theme,
-) {
+pub fn render_profile(frame: &mut Frame, area: Rect, member: &Member, theme: &Theme) {
     let lines = vec![
         Line::from(vec![
             Span::styled("Username: ", Style::default().fg(theme.primary)),
-            Span::styled(&member.username, Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                &member.username,
+                Style::default()
+                    .fg(theme.accent)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]),
         Line::from(vec![
             Span::styled("ID: ", Style::default().fg(theme.primary)),
@@ -423,13 +541,12 @@ pub fn render_profile(
         ]),
     ];
 
-    let profile = Paragraph::new(Text::from(lines))
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.primary))
-                .title(" Profile "),
-        );
+    let profile = Paragraph::new(Text::from(lines)).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary))
+            .title(" Profile "),
+    );
 
     frame.render_widget(profile, area);
 }
@@ -477,13 +594,12 @@ Notifications:
   Enter     - Jump to linked topic
 "#;
 
-    let help = Paragraph::new(help_text)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(theme.primary))
-                .title(" Help "),
-        );
+    let help = Paragraph::new(help_text).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(theme.primary))
+            .title(" Help "),
+    );
 
     frame.render_widget(help, area);
 }
@@ -513,14 +629,116 @@ pub fn render_error(frame: &mut Frame, area: Rect, error: &str, theme: &Theme) {
     frame.render_widget(error_widget, area);
 }
 
-pub fn render_status_bar(
-    frame: &mut Frame,
-    area: Rect,
-    message: &str,
-    theme: &Theme,
-) {
-    let status = Paragraph::new(message)
-        .style(Style::default().fg(theme.background).bg(theme.primary));
+pub fn render_status_bar(frame: &mut Frame, area: Rect, message: &str, theme: &Theme) {
+    let status =
+        Paragraph::new(message).style(Style::default().fg(theme.background).bg(theme.primary));
 
     frame.render_widget(status, area);
+}
+
+pub fn render_token_input(
+    frame: &mut Frame,
+    area: Rect,
+    token: &str,
+    cursor_position: usize,
+    theme: &Theme,
+) {
+    use ratatui::layout::Alignment;
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(20),
+            Constraint::Min(15),
+            Constraint::Percentage(20),
+        ])
+        .split(area);
+
+    let input_area = centered_rect(80, 50, chunks[1]);
+
+    let instructions = vec![
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Welcome to V2EX TUI!",
+            Style::default()
+                .fg(theme.primary)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from(""),
+        Line::from("A V2EX Personal Access Token is required to use this application."),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("1. ", Style::default().fg(theme.accent)),
+            Span::from("Go to "),
+            Span::styled(
+                "https://www.v2ex.com/settings/tokens",
+                Style::default().fg(theme.secondary),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("2. ", Style::default().fg(theme.accent)),
+            Span::from("Create a new token"),
+        ]),
+        Line::from(vec![
+            Span::styled("3. ", Style::default().fg(theme.accent)),
+            Span::from("Paste it below and press Enter"),
+        ]),
+        Line::from(""),
+    ];
+
+    // Simple plain text input box
+    let mut input_lines = vec![Line::from(vec![Span::styled(
+        "Token: ",
+        Style::default().fg(theme.primary),
+    )])];
+
+    // Show token as plain text with cursor
+    let mut token_spans = vec![];
+    let token_len = token.chars().count();
+
+    for (i, ch) in token.chars().enumerate() {
+        if i == cursor_position {
+            // Cursor position - highlight
+            token_spans.push(Span::styled(
+                ch.to_string(),
+                Style::default().bg(theme.primary).fg(theme.background),
+            ));
+        } else {
+            token_spans.push(Span::styled(
+                ch.to_string(),
+                Style::default().fg(theme.foreground),
+            ));
+        }
+    }
+
+    // If cursor is at the end
+    if cursor_position == token_len {
+        token_spans.push(Span::styled(
+            " ",
+            Style::default().bg(theme.primary).fg(theme.background),
+        ));
+    }
+
+    input_lines.push(Line::from(token_spans));
+    input_lines.push(Line::from(""));
+    input_lines.push(Line::from(vec![Span::styled(
+        "Press Enter to save, Ctrl+C to quit",
+        Style::default().fg(theme.muted),
+    )]));
+
+    let all_lines: Vec<Line> = instructions
+        .into_iter()
+        .chain(input_lines.into_iter())
+        .collect();
+
+    let input_widget = Paragraph::new(Text::from(all_lines))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.primary))
+                .title(" Token Setup "),
+        )
+        .alignment(Alignment::Center);
+
+    frame.render_widget(input_widget, input_area);
 }
