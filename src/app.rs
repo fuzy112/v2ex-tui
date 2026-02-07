@@ -4,6 +4,7 @@ use ratatui::{
 };
 
 use crate::api::{Member, V2exClient};
+use crate::browser::Browser;
 use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState};
 use crate::ui::{render_error, render_loading, render_status_bar, render_token_input};
 use crate::views::help::HelpView;
@@ -225,10 +226,9 @@ impl App {
     // Browser methods
     pub fn open_current_topic_in_browser(&mut self) {
         if let Some(ref topic) = self.topic_state.current {
-            let url = format!("https://www.v2ex.com/t/{}", topic.id);
-            match webbrowser::open(&url) {
-                Ok(_) => {
-                    self.ui_state.status_message = format!("Opened topic {} in browser", topic.id);
+            match Browser::open_topic(topic.id) {
+                Ok(result) => {
+                    self.ui_state.status_message = result.to_string();
                 }
                 Err(e) => {
                     self.ui_state.error = Some(format!("Failed to open browser: {}", e));
@@ -244,11 +244,9 @@ impl App {
                 .replies
                 .get(self.topic_state.selected_reply)
             {
-                let url = format!("https://www.v2ex.com/t/{}#r_{}", topic.id, reply.id);
-                match webbrowser::open(&url) {
-                    Ok(_) => {
-                        self.ui_state.status_message =
-                            format!("Opened topic {} (reply #{}) in browser", topic.id, reply.id);
+                match Browser::open_topic_reply(topic.id, reply.id) {
+                    Ok(result) => {
+                        self.ui_state.status_message = result.to_string();
                     }
                     Err(e) => {
                         self.ui_state.error = Some(format!("Failed to open browser: {}", e));
@@ -260,10 +258,9 @@ impl App {
 
     pub fn open_selected_topic_in_browser(&mut self) {
         if let Some(topic) = self.topic_state.topics.get(self.topic_state.selected) {
-            let url = format!("https://www.v2ex.com/t/{}", topic.id);
-            match webbrowser::open(&url) {
-                Ok(_) => {
-                    self.ui_state.status_message = format!("Opened topic {} in browser", topic.id);
+            match Browser::open_topic(topic.id) {
+                Ok(result) => {
+                    self.ui_state.status_message = result.to_string();
                 }
                 Err(e) => {
                     self.ui_state.error = Some(format!("Failed to open browser: {}", e));
@@ -279,11 +276,9 @@ impl App {
             .get(self.notification_state.selected)
         {
             if let Some(topic_id) = notification.extract_topic_id() {
-                let url = format!("https://www.v2ex.com/t/{}", topic_id);
-                match webbrowser::open(&url) {
-                    Ok(_) => {
-                        self.ui_state.status_message =
-                            format!("Opened topic {} in browser", topic_id);
+                match Browser::open_topic(topic_id) {
+                    Ok(result) => {
+                        self.ui_state.status_message = result.to_string();
                     }
                     Err(e) => {
                         self.ui_state.error = Some(format!("Failed to open browser: {}", e));

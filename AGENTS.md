@@ -87,6 +87,27 @@ async fn load_topics(&self) -> Result<Vec<Topic>> {
 - Mark async functions with `async fn`
 - Handle errors at `.await` points
 
+### Dead Code Handling
+When using `#[allow(dead_code)]` attributes, ALWAYS include a comment explaining why the code is kept:
+- **Legacy functions**: Mark as `// Legacy function replaced by <NewModule/NewFunction>`
+- **API completeness**: Mark as `// Not currently used, but kept for API completeness`
+- **Future features**: Mark as `// Reserved for future feature: <description>`
+- **Testing utilities**: Mark as `// Test utility, used in integration tests`
+
+**Examples:**
+```rust
+#[allow(dead_code)] // Legacy function replaced by TopicListView
+pub fn render_topic_list(...)
+
+#[allow(dead_code)] // Error variant not currently used, but kept for completeness
+pub enum BrowserResult { ... }
+
+#[allow(dead_code)] // Utility function not currently used, but kept for completeness
+pub fn with_terminal(...)
+```
+
+**Cleanup policy:** Legacy functions marked with `allow(dead_code)` should be removed after confirming new implementations are stable and tested.
+
 ## Project Structure
 ```
 src/

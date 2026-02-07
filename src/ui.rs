@@ -52,6 +52,7 @@ pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .split(popup_layout[1])[1]
 }
 
+#[allow(dead_code)] // Legacy function replaced by TopicListView
 pub fn render_topic_list(
     frame: &mut Frame,
     area: Rect,
@@ -158,6 +159,7 @@ pub fn render_topic_list(
     frame.render_widget(list, chunks[1]);
 }
 
+#[allow(dead_code)] // Legacy function replaced by TopicDetailView
 pub fn render_topic_detail(
     frame: &mut Frame,
     area: Rect,
@@ -227,6 +229,7 @@ pub fn render_topic_detail(
     frame.render_widget(content_para, chunks[1]);
 }
 
+#[allow(dead_code)] // Legacy function replaced by TopicDetailView::render_replies
 pub fn render_replies(
     frame: &mut Frame,
     area: Rect,
@@ -328,6 +331,7 @@ pub fn render_replies(
     frame.render_stateful_widget(list, area, list_state);
 }
 
+#[allow(dead_code)] // Legacy function replaced by NotificationsView
 pub fn render_notifications(
     frame: &mut Frame,
     area: Rect,
@@ -384,6 +388,7 @@ pub fn render_notifications(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[allow(dead_code)] // Legacy function replaced by NodeSelectView
 pub fn render_node_select(
     frame: &mut Frame,
     area: Rect,
@@ -478,6 +483,7 @@ pub fn render_node_select(
     frame.render_widget(input_widget, chunks[1]);
 }
 
+#[allow(dead_code)] // Legacy function replaced by ProfileView
 pub fn render_profile(frame: &mut Frame, area: Rect, member: &Member, theme: &Theme) {
     let lines = vec![
         Line::from(vec![
@@ -547,6 +553,7 @@ pub fn render_profile(frame: &mut Frame, area: Rect, member: &Member, theme: &Th
     frame.render_widget(profile, area);
 }
 
+#[allow(dead_code)]
 pub fn render_help(frame: &mut Frame, area: Rect, theme: &Theme) {
     let help_text = r#"
 Keyboard Shortcuts:

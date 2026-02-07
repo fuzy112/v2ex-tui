@@ -85,6 +85,7 @@ impl TopicDetailView {
         frame.render_widget(content_para, chunks[1]);
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render_split(
         &self,
         frame: &mut Frame,

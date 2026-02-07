@@ -1,26 +1,20 @@
 use anyhow::Result;
-use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    backend::{Backend, CrosstermBackend},
-    Terminal,
-};
-use std::io;
+use crossterm::event::{Event, KeyCode, KeyEventKind};
 
 mod api;
 mod app;
+mod browser;
 mod event;
 mod nodes;
 mod state;
+mod terminal;
 mod ui;
 mod views;
 
 use api::V2exClient;
 use app::{App, View};
 use event::EventHandler;
+use terminal::TerminalManager;
 
 fn print_help() {
     println!("v2ex-tui - A terminal UI viewer for V2EX");
@@ -65,13 +59,13 @@ fn print_version() {
     println!("v2ex-tui 0.1.0");
 }
 
-async fn run_token_input(terminal: &mut Terminal<impl Backend>) -> Result<Option<String>> {
+async fn run_token_input(terminal: &mut TerminalManager) -> Result<Option<String>> {
     let mut app = App::new();
     app.view = View::TokenInput;
     app.ui_state.status_message = "Enter your V2EX token".to_string();
 
     loop {
-        terminal.draw(|frame| app.render(frame))?;
+        terminal.terminal().draw(|frame| app.render(frame))?;
 
         if let Event::Key(key) = crossterm::event::read()? {
             if key.kind == KeyEventKind::Press {
@@ -120,7 +114,7 @@ async fn run_token_input(terminal: &mut Terminal<impl Backend>) -> Result<Option
     }
 }
 
-async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> Result<()> {
+async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<()> {
     let mut app = App::new();
     let mut event_handler = EventHandler::new(&client);
 
@@ -128,7 +122,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
     app.load_topics(&client, false).await;
 
     loop {
-        terminal.draw(|frame| app.render(frame))?;
+        terminal.terminal().draw(|frame| app.render(frame))?;
 
         if let Event::Key(key) = crossterm::event::read()? {
             if key.kind == KeyEventKind::Press && event_handler.handle_key(&mut app, key).await? {
@@ -168,23 +162,9 @@ async fn main() -> Result<()> {
         Ok(t) => t,
         Err(_) => {
             // Token not found, setup terminal and show token input view
-            enable_raw_mode()?;
-            let mut stdout = io::stdout();
-            execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-            let backend = CrosstermBackend::new(stdout);
-            let mut terminal = Terminal::new(backend)?;
-
-            // Run token input UI
-            let token_result = run_token_input(&mut terminal).await;
-
-            // Restore terminal
-            disable_raw_mode()?;
-            execute!(
-                terminal.backend_mut(),
-                LeaveAlternateScreen,
-                DisableMouseCapture
-            )?;
-            terminal.show_cursor()?;
+            let mut manager = TerminalManager::new()?;
+            let token_result = run_token_input(&mut manager).await;
+            manager.shutdown()?;
 
             match token_result? {
                 Some(t) => t,
@@ -218,23 +198,9 @@ async fn main() -> Result<()> {
     }
 
     // Setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // Run app
-    let result = run_app(&mut terminal, client).await;
-
-    // Restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    let mut manager = TerminalManager::new()?;
+    let result = run_app(&mut manager, client).await;
+    manager.shutdown()?;
 
     result
 }
