@@ -1675,9 +1675,9 @@ fn print_help() {
     println!("  https://www.v2ex.com/settings/tokens");
     println!();
     println!("Keyboard Shortcuts (Emacs/dired style):");
-    println!("  n/p or ↓/↑     Move down/up (next/previous)");
-    println!("  h/← or l/→     Navigate back/forward");
-    println!("  Enter/t        Open selected topic/notification");
+    println!("  n / p or ↓ / ↑ Move down/up (next/previous)");
+    println!("  h / ← or l / → Navigate back/forward");
+    println!("  Enter / t      Open selected topic/notification");
     println!(
         "  g              Refresh
   r              Reply (in topic detail)"
@@ -1691,11 +1691,11 @@ fn print_help() {
   o              Open current topic in browser"
     );
     println!("  +              Load more topics");
-    println!("  PageUp/Down    Load previous/next page of topics");
-    println!("  N/P            Next/previous topic in detail view");
-    println!("  </>            Go to first/last item");
+    println!("  PageUp / PageDown  Load previous/next page of topics");
+    println!("  N / P          Next/previous topic in detail view");
+    println!("  < / >          Go to first/last item");
     println!("  ?              Help");
-    println!("  q/Esc          Quit");
+    println!("  q / Esc        Quit");
 }
 
 fn print_version() {

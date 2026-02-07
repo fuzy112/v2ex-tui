@@ -559,7 +559,7 @@ Navigation (Emacs/dired style):
 
   PageUp    - Page up / Scroll up faster
   PageDown  - Page down / Scroll down faster
-  </>        - Go to first/last item
+  < / >      - Go to first/last item
 
 Actions:
   Enter     - Open selected topic/notification
@@ -572,21 +572,21 @@ Actions:
 Topic List:
   s         - Select node from menu
   1-9       - Quick switch to node (1:python, 2:programmer, etc.)
-  Enter/t   - Open selected topic
+  Enter / t - Open selected topic
   +         - Load more topics
 
 Node Selection:
-  n/p       - Navigate node list
+  n / p     - Navigate node list
   Enter     - Select node
   Tab       - Toggle manual input mode
-  h/Esc     - Cancel
+  h / Esc   - Cancel
 
 Topic Detail:
   t         - Toggle between content and replies
-  n/p       - Scroll content/replies
-  N/P       - Switch to next/previous topic
-  PageUp/Dn - Scroll faster
-  o/r       - Open in browser
+  n / p     - Scroll content/replies
+  N / P     - Switch to next/previous topic
+  PageUp / PageDown - Scroll faster
+  o / r     - Open in browser
 
 Notifications:
   Enter     - Jump to linked topic
