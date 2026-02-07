@@ -122,3 +122,15 @@ impl TopicListView {
         frame.render_widget(list, chunks[1]);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_topic_list_view_new() {
+        let _view = TopicListView::new();
+        // Simple test to verify the view can be created
+        assert!(true); // Placeholder assertion
+    }
+}

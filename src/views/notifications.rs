@@ -71,3 +71,15 @@ impl NotificationsView {
         frame.render_widget(list, area);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_notifications_view_new() {
+        let _view = NotificationsView::new();
+        // Simple test to verify the view can be created
+        assert!(true); // Placeholder assertion
+    }
+}

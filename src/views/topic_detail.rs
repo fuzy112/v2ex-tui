@@ -176,3 +176,15 @@ impl TopicDetailView {
         frame.render_stateful_widget(list, area, list_state);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_topic_detail_view_new() {
+        let _view = TopicDetailView::new();
+        // Simple test to verify the view can be created
+        assert!(true); // Placeholder assertion
+    }
+}

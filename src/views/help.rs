@@ -80,3 +80,15 @@ Configuration:
         frame.render_widget(help, area);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_help_view_new() {
+        let _view = HelpView::new();
+        // Simple test to verify the view can be created
+        assert!(true); // Placeholder assertion
+    }
+}
