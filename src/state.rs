@@ -1,5 +1,200 @@
 use ratatui::widgets::ListState;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_topic_state_next_topic() {
+        let mut state = TopicState::default();
+
+        // Empty topics - should not panic
+        state.next_topic();
+        assert_eq!(state.selected, 0);
+
+        // Add topics
+        state.topics = vec![
+            create_test_topic(1),
+            create_test_topic(2),
+            create_test_topic(3),
+        ];
+
+        // Next topic
+        state.next_topic();
+        assert_eq!(state.selected, 1);
+
+        state.next_topic();
+        assert_eq!(state.selected, 2);
+
+        // Wrap around
+        state.next_topic();
+        assert_eq!(state.selected, 0);
+    }
+
+    #[test]
+    fn test_topic_state_previous_topic() {
+        let mut state = TopicState::default();
+
+        // Empty topics - should not panic
+        state.previous_topic();
+        assert_eq!(state.selected, 0);
+
+        // Add topics
+        state.topics = vec![
+            create_test_topic(1),
+            create_test_topic(2),
+            create_test_topic(3),
+        ];
+        state.selected = 1;
+
+        // Previous topic
+        state.previous_topic();
+        assert_eq!(state.selected, 0);
+
+        // Wrap around
+        state.previous_topic();
+        assert_eq!(state.selected, 2);
+    }
+
+    #[test]
+    fn test_topic_state_scroll() {
+        let mut state = TopicState::default();
+
+        // Scroll down
+        state.scroll_down();
+        assert_eq!(state.scroll, 3);
+
+        state.scroll_down();
+        assert_eq!(state.scroll, 6);
+
+        // Scroll up
+        state.scroll_up();
+        assert_eq!(state.scroll, 3);
+
+        state.scroll_up();
+        assert_eq!(state.scroll, 0);
+
+        // Should not go below 0
+        state.scroll_up();
+        assert_eq!(state.scroll, 0);
+    }
+
+    #[test]
+    fn test_notification_state_next() {
+        let mut state = NotificationState::default();
+
+        // Empty - should not panic
+        state.next();
+        assert_eq!(state.selected, 0);
+
+        // Add notifications
+        state.notifications = vec![create_test_notification(1), create_test_notification(2)];
+
+        state.next();
+        assert_eq!(state.selected, 1);
+
+        // Wrap around
+        state.next();
+        assert_eq!(state.selected, 0);
+    }
+
+    #[test]
+    fn test_notification_state_previous() {
+        let mut state = NotificationState::default();
+
+        // Add notifications
+        state.notifications = vec![create_test_notification(1), create_test_notification(2)];
+        state.selected = 1;
+
+        state.previous();
+        assert_eq!(state.selected, 0);
+
+        // Wrap around
+        state.previous();
+        assert_eq!(state.selected, 1);
+    }
+
+    #[test]
+    fn test_node_state_switch_node() {
+        let mut state = NodeState::new();
+
+        assert_eq!(state.current_node, "python");
+        assert_eq!(state.page, 1);
+
+        state.switch_node("rust");
+        assert_eq!(state.current_node, "rust");
+        assert_eq!(state.page, 1);
+    }
+
+    #[test]
+    fn test_node_state_select_current_node() {
+        let mut state = NodeState::new();
+
+        // Select from favorite nodes
+        state.selected = 1; // programmer
+        let result = state.select_current_node();
+        assert_eq!(result, Some("programmer".to_string()));
+        assert_eq!(state.current_node, "programmer");
+    }
+
+    #[test]
+    fn test_token_state_insert_delete() {
+        let mut state = TokenState::default();
+
+        // Insert characters
+        state.insert_char('h');
+        state.insert_char('i');
+        assert_eq!(state.input, "hi");
+        assert_eq!(state.cursor, 2);
+
+        // Move cursor left
+        state.move_cursor_left();
+        assert_eq!(state.cursor, 1);
+
+        // Insert in middle: cursor at 1, inserts 'e' -> "hei"
+        state.insert_char('e');
+        assert_eq!(state.input, "hei");
+        assert_eq!(state.cursor, 2);
+
+        // Delete character: cursor at 2, deletes char at position 1 ('e')
+        state.delete_char();
+        assert_eq!(state.input, "hi");
+        assert_eq!(state.cursor, 1);
+    }
+
+    // Helper functions
+    fn create_test_topic(id: i64) -> crate::api::Topic {
+        crate::api::Topic {
+            id,
+            node: None,
+            member: None,
+            last_reply_by: None,
+            last_touched: None,
+            title: format!("Test Topic {}", id),
+            url: format!("https://v2ex.com/t/{}", id),
+            created: 0,
+            deleted: None,
+            content: None,
+            content_rendered: None,
+            last_modified: None,
+            replies: 0,
+        }
+    }
+
+    fn create_test_notification(id: i64) -> crate::api::Notification {
+        crate::api::Notification {
+            id,
+            member_id: 1,
+            member: None,
+            for_member_id: 1,
+            text: format!("Test notification {}", id),
+            payload: None,
+            payload_rendered: None,
+            created: 0,
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct TopicState {
     pub topics: Vec<crate::api::Topic>,
