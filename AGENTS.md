@@ -167,4 +167,7 @@ Authorization: Bearer <token>
 
 **Caveats**: Replies pagination may not work, notification payload varies (string/object), inconsistent data structures.
 
+## Related Links
+- **V2EX Official Blog RSS**: https://blog.v2ex.com/rss/ - For updates and announcements about V2EX platform
+
 Always follow existing patterns and maintain consistency.
