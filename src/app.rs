@@ -6,10 +6,11 @@ use ratatui::{
 use crate::api::{Member, V2exClient};
 use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState};
 use crate::ui::{
-    render_error, render_help, render_loading, render_node_select,
-    render_profile, render_status_bar, render_token_input,
+    render_error, render_help, render_loading, render_node_select, render_profile,
+    render_status_bar, render_token_input,
 };
 use crate::views::notifications::NotificationsView;
+use crate::views::profile::ProfileView;
 use crate::views::topic_detail::TopicDetailView;
 use crate::views::topic_list::TopicListView;
 
@@ -382,7 +383,8 @@ impl App {
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
                 } else if let Some(ref profile) = self.profile {
-                    render_profile(frame, chunks[0], profile, &self.ui_state.theme);
+                    let profile_view = ProfileView::new();
+                    profile_view.render(frame, chunks[0], profile, &self.ui_state.theme);
                 }
             }
             View::Help => {

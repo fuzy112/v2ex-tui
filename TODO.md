@@ -68,7 +68,7 @@ tests/
 1. ✅ Create `src/views/` directory structure - **COMPLETED**
 2. ✅ Extract topic list view logic - **COMPLETED**
 3. ✅ Extract topic detail view logic - **COMPLETED**
-4. Extract notifications view logic
+4. ✅ Extract notifications view logic - **COMPLETED**
 5. Extract profile view logic
 6. Extract node selection and help views
 7. Update app.rs to use new view modules
