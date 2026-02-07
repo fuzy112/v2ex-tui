@@ -42,7 +42,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            view: View::TopicList,
+            view: View::Aggregate,
             topic_state: TopicState::default(),
             notification_state: NotificationState::default(),
             profile: None,

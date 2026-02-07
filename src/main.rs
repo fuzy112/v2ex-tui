@@ -119,8 +119,8 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
     let mut app = App::new();
     let mut event_handler = EventHandler::new(&client);
 
-    // Load initial topics
-    app.load_topics(&client, false).await;
+    // Load initial aggregated topics
+    app.load_aggregate(&client).await;
 
     loop {
         terminal.terminal().draw(|frame| app.render(frame))?;
