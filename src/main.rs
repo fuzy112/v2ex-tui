@@ -185,15 +185,12 @@ async fn main() -> Result<()> {
             println!("Connected to V2EX as: {}", member.username);
         }
         Err(e) => {
-            // Token is invalid, remove it
-            if let Ok(config_dir) = V2exClient::config_dir() {
-                let token_path = config_dir.join("token.txt");
-                let _ = std::fs::remove_file(&token_path);
-            }
+            // Token is invalid, but keep it for user to fix
             eprintln!("Error: Failed to connect to V2EX API: {}", e);
             eprintln!(
-                "The token has been removed. Please run the application again with a valid token."
+                "The token appears to be invalid. Please check your token in ~/.config/v2ex/token.txt"
             );
+            eprintln!("You can get a new token from: https://www.v2ex.com/settings/tokens");
             std::process::exit(1);
         }
     }
