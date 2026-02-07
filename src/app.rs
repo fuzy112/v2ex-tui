@@ -8,8 +8,8 @@ use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState
 use crate::ui::{
     render_error, render_help, render_loading, render_node_select, render_notifications,
     render_profile, render_replies, render_status_bar, render_token_input, render_topic_detail,
-    render_topic_list,
 };
+use crate::views::topic_list::TopicListView;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum View {
@@ -308,7 +308,8 @@ impl App {
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
                 } else {
-                    render_topic_list(
+                    let topic_list_view = TopicListView::new();
+                    topic_list_view.render(
                         frame,
                         chunks[0],
                         &self.topic_state.topics,

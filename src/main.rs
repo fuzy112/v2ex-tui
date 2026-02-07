@@ -16,6 +16,7 @@ mod event;
 mod nodes;
 mod state;
 mod ui;
+mod views;
 
 use api::V2exClient;
 use app::{App, View};
