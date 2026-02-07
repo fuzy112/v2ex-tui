@@ -229,49 +229,44 @@ impl V2exClient {
         method: reqwest::Method,
         endpoint: &str,
     ) -> Result<ApiResponse<T>> {
-        let url = format!("{}/{}", BASE_URL, endpoint);
-        let response = self
-            .client
-            .request(method, &url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .send()
-            .await?;
-
-        let status = response.status();
-        let api_response: ApiResponse<T> = response.json().await?;
-
-        if !status.is_success() {
-            return Err(anyhow::anyhow!(
-                "API error: {} - {:?}",
-                status,
-                api_response.message
-            ));
-        }
-
-        Ok(api_response)
+        self.request_with_optional_body::<T, ()>(method, endpoint, None)
+            .await
     }
 
-    #[allow(dead_code)] // Internal helper for POST/PUT requests (not currently used)
+    #[allow(dead_code)]
     async fn request_with_body<T: serde::de::DeserializeOwned, B: serde::Serialize>(
         &self,
         method: reqwest::Method,
         endpoint: &str,
         body: &B,
     ) -> Result<ApiResponse<T>> {
+        self.request_with_optional_body(method, endpoint, Some(body))
+            .await
+    }
+
+    async fn request_with_optional_body<T: serde::de::DeserializeOwned, B: serde::Serialize>(
+        &self,
+        method: reqwest::Method,
+        endpoint: &str,
+        body: Option<&B>,
+    ) -> Result<ApiResponse<T>> {
         let url = format!("{}/{}", BASE_URL, endpoint);
-        let response = self
+        let mut request = self
             .client
             .request(method, &url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .header("Content-Type", "application/json")
-            .json(body)
-            .send()
-            .await?;
+            .header("Authorization", format!("Bearer {}", self.token));
 
+        if let Some(body) = body {
+            request = request
+                .header("Content-Type", "application/json")
+                .json(body);
+        }
+
+        let response = request.send().await?;
         let status = response.status();
         let text = response.text().await?;
 
-        // Try to parse as JSON, but handle empty or non-JSON responses
+        // Handle empty responses
         if text.trim().is_empty() {
             return Err(anyhow::anyhow!(
                 "API returned empty response (status: {})",
@@ -279,6 +274,7 @@ impl V2exClient {
             ));
         }
 
+        // Parse JSON response
         let api_response: ApiResponse<T> = match serde_json::from_str(&text) {
             Ok(resp) => resp,
             Err(e) => {
@@ -291,6 +287,7 @@ impl V2exClient {
             }
         };
 
+        // Check HTTP status
         if !status.is_success() {
             return Err(anyhow::anyhow!(
                 "API error: {} - {:?}",
