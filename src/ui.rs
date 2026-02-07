@@ -586,8 +586,7 @@ Topic Detail:
   n/p       - Scroll content/replies
   N/P       - Switch to next/previous topic
   PageUp/Dn - Scroll faster
-  o         - Open in browser
-  r         - Reply to topic
+  o/r       - Open in browser
 
 Notifications:
   Enter     - Jump to linked topic

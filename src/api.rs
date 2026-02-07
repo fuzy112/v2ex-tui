@@ -280,7 +280,27 @@ impl V2exClient {
             .await?;
 
         let status = response.status();
-        let api_response: ApiResponse<T> = response.json().await?;
+        let text = response.text().await?;
+
+        // Try to parse as JSON, but handle empty or non-JSON responses
+        if text.trim().is_empty() {
+            return Err(anyhow::anyhow!(
+                "API returned empty response (status: {})",
+                status
+            ));
+        }
+
+        let api_response: ApiResponse<T> = match serde_json::from_str(&text) {
+            Ok(resp) => resp,
+            Err(e) => {
+                return Err(anyhow::anyhow!(
+                    "Failed to parse API response: {}. Status: {}. Raw response: {}",
+                    e,
+                    status,
+                    &text[..text.len().min(500)]
+                ));
+            }
+        };
 
         if !status.is_success() {
             return Err(anyhow::anyhow!(
@@ -351,7 +371,8 @@ impl V2exClient {
         let request = CreateReplyRequest { content };
         let response: ApiResponse<Reply> = self
             .request_with_body(reqwest::Method::POST, &endpoint, &request)
-            .await?;
+            .await
+            .with_context(|| format!("Failed to create reply to topic {}", topic_id))?;
         response.result.context("No reply data in response")
     }
 
