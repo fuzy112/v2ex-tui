@@ -68,8 +68,12 @@ impl TopicDetailView {
 
         frame.render_widget(header, chunks[0]);
 
-        // Content
-        let content = topic.content.as_deref().unwrap_or("No content");
+        // Content - prefer rendered HTML, fall back to raw content
+        let content = topic
+            .content_rendered
+            .as_deref()
+            .or(topic.content.as_deref())
+            .unwrap_or("No content");
         let content_text = html2text::from_read(content.as_bytes(), area.width as usize);
 
         let content_para = Paragraph::new(content_text)
@@ -115,7 +119,11 @@ impl TopicDetailView {
             .map(|(index, reply)| {
                 let is_selected = list_state.selected() == Some(index);
 
-                let content_text = reply.content.as_deref().unwrap_or("No content");
+                let content_text = reply
+                    .content_rendered
+                    .as_deref()
+                    .or(reply.content.as_deref())
+                    .unwrap_or("No content");
                 let content = html2text::from_read(
                     content_text.as_bytes(),
                     area.width.saturating_sub(4) as usize,
