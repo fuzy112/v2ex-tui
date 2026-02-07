@@ -5,10 +5,9 @@ use ratatui::{
 
 use crate::api::{Member, V2exClient};
 use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState};
-use crate::ui::{
-    render_error, render_help, render_loading, render_node_select, render_profile,
-    render_status_bar, render_token_input,
-};
+use crate::ui::{render_error, render_loading, render_status_bar, render_token_input};
+use crate::views::help::HelpView;
+use crate::views::node_select::NodeSelectView;
 use crate::views::notifications::NotificationsView;
 use crate::views::profile::ProfileView;
 use crate::views::topic_detail::TopicDetailView;
@@ -388,10 +387,12 @@ impl App {
                 }
             }
             View::Help => {
-                render_help(frame, chunks[0], &self.ui_state.theme);
+                let help_view = HelpView::new();
+                help_view.render(frame, chunks[0], &self.ui_state.theme);
             }
             View::NodeSelect => {
-                render_node_select(
+                let node_select_view = NodeSelectView::new();
+                node_select_view.render(
                     frame,
                     chunks[0],
                     &self.node_state.favorite_nodes,
