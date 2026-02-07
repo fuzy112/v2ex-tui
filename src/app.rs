@@ -7,8 +7,9 @@ use crate::api::{Member, V2exClient};
 use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState};
 use crate::ui::{
     render_error, render_help, render_loading, render_node_select, render_notifications,
-    render_profile, render_replies, render_status_bar, render_token_input, render_topic_detail,
+    render_profile, render_status_bar, render_token_input,
 };
+use crate::views::topic_detail::TopicDetailView;
 use crate::views::topic_list::TopicListView;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -325,6 +326,7 @@ impl App {
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
                 } else if let Some(ref topic) = self.topic_state.current {
+                    let topic_detail_view = TopicDetailView::new();
                     if self.topic_state.show_replies {
                         let area = chunks[0];
                         let is_narrow = area.width < 100;
@@ -336,22 +338,18 @@ impl App {
                             })
                             .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
                             .split(area);
-                        render_topic_detail(
+                        topic_detail_view.render_split(
                             frame,
                             split_chunks[0],
+                            split_chunks[1],
                             topic,
                             self.topic_state.scroll,
-                            &self.ui_state.theme,
-                        );
-                        render_replies(
-                            frame,
-                            split_chunks[1],
                             &self.topic_state.replies,
                             &mut self.topic_state.replies_list_state,
                             &self.ui_state.theme,
                         );
                     } else {
-                        render_topic_detail(
+                        topic_detail_view.render(
                             frame,
                             chunks[0],
                             topic,
