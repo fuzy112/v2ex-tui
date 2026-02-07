@@ -14,6 +14,7 @@ mod api;
 mod app;
 mod event;
 mod nodes;
+mod state;
 mod ui;
 
 use api::V2exClient;
@@ -66,7 +67,7 @@ fn print_version() {
 async fn run_token_input(terminal: &mut Terminal<impl Backend>) -> Result<Option<String>> {
     let mut app = App::new();
     app.view = View::TokenInput;
-    app.status_message = "Enter your V2EX token".to_string();
+    app.ui_state.status_message = "Enter your V2EX token".to_string();
 
     loop {
         terminal.draw(|frame| app.render(frame))?;
@@ -85,30 +86,31 @@ async fn run_token_input(terminal: &mut Terminal<impl Backend>) -> Result<Option
                         return Ok(None);
                     }
                     KeyCode::Enter => {
-                        if !app.token_input.trim().is_empty() {
-                            match app.save_token() {
+                        if !app.token_state.input.trim().is_empty() {
+                            match app.token_state.save() {
                                 Ok(_) => {
-                                    return Ok(Some(app.token_input.trim().to_string()));
+                                    return Ok(Some(app.token_state.input.trim().to_string()));
                                 }
                                 Err(e) => {
-                                    app.status_message = format!("Error saving token: {}", e);
+                                    app.ui_state.status_message =
+                                        format!("Error saving token: {}", e);
                                 }
                             }
                         } else {
-                            app.status_message = "Token cannot be empty".to_string();
+                            app.ui_state.status_message = "Token cannot be empty".to_string();
                         }
                     }
                     KeyCode::Char(ch) => {
-                        app.insert_token_char(ch);
+                        app.token_state.insert_char(ch);
                     }
                     KeyCode::Backspace => {
-                        app.delete_token_char();
+                        app.token_state.delete_char();
                     }
                     KeyCode::Left => {
-                        app.move_token_cursor_left();
+                        app.token_state.move_cursor_left();
                     }
                     KeyCode::Right => {
-                        app.move_token_cursor_right();
+                        app.token_state.move_cursor_right();
                     }
                     _ => {}
                 }

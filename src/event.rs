@@ -57,8 +57,8 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_q(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('q');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('q');
             Ok(false)
         } else {
             match app.view {
@@ -69,7 +69,7 @@ impl<'a> EventHandler<'a> {
                 }
                 _ => {
                     app.view = View::TopicList;
-                    app.error = None;
+                    app.ui_state.error = None;
                     Ok(false)
                 }
             }
@@ -85,15 +85,15 @@ impl<'a> EventHandler<'a> {
             }
             _ => {
                 app.view = View::TopicList;
-                app.error = None;
+                app.ui_state.error = None;
                 Ok(false)
             }
         }
     }
 
     fn handle_help(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('?');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('?');
         } else {
             app.view = View::Help;
         }
@@ -101,11 +101,11 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_back(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             if key.code == KeyCode::Char('h') {
-                app.insert_node_char('h');
+                app.node_state.insert_char('h');
             } else {
-                app.move_node_cursor_left();
+                app.node_state.move_cursor_left();
             }
         } else {
             match app.view {
@@ -115,7 +115,7 @@ impl<'a> EventHandler<'a> {
                 _ => {
                     if app.view != View::TopicList {
                         app.view = View::TopicList;
-                        app.error = None;
+                        app.ui_state.error = None;
                     }
                 }
             }
@@ -126,20 +126,20 @@ impl<'a> EventHandler<'a> {
     async fn handle_n(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             if app.view == View::NodeSelect {
-                app.next_node();
+                app.node_state.next_node();
             }
-        } else if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('n');
+        } else if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('n');
         } else {
             match app.view {
-                View::TopicList => app.next_topic(),
-                View::Notifications => app.next_notification(),
-                View::NodeSelect => app.next_node(),
+                View::TopicList => app.topic_state.next_topic(),
+                View::Notifications => app.notification_state.next(),
+                View::NodeSelect => app.node_state.next_node(),
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
-                        app.next_reply();
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                        app.topic_state.next_reply();
                     } else {
-                        app.scroll_topic_down();
+                        app.topic_state.scroll_down();
                     }
                 }
                 _ => {}
@@ -150,18 +150,18 @@ impl<'a> EventHandler<'a> {
 
     fn handle_down(&self, app: &mut App) -> Result<bool> {
         match app.view {
-            View::TopicList => app.next_topic(),
-            View::Notifications => app.next_notification(),
+            View::TopicList => app.topic_state.next_topic(),
+            View::Notifications => app.notification_state.next(),
             View::NodeSelect => {
-                if !app.is_node_completion_mode {
-                    app.next_node();
+                if !app.node_state.is_completion_mode {
+                    app.node_state.next_node();
                 }
             }
             View::TopicDetail => {
-                if app.show_replies && !app.topic_replies.is_empty() {
-                    app.next_reply();
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.topic_state.next_reply();
                 } else {
-                    app.scroll_topic_down();
+                    app.topic_state.scroll_down();
                 }
             }
             _ => {}
@@ -172,20 +172,20 @@ impl<'a> EventHandler<'a> {
     async fn handle_p(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             if app.view == View::NodeSelect {
-                app.previous_node();
+                app.node_state.previous_node();
             }
-        } else if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('p');
+        } else if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('p');
         } else {
             match app.view {
-                View::TopicList => app.previous_topic(),
-                View::Notifications => app.previous_notification(),
-                View::NodeSelect => app.previous_node(),
+                View::TopicList => app.topic_state.previous_topic(),
+                View::Notifications => app.notification_state.previous(),
+                View::NodeSelect => app.node_state.previous_node(),
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
-                        app.previous_reply();
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                        app.topic_state.previous_reply();
                     } else {
-                        app.scroll_topic_up();
+                        app.topic_state.scroll_up();
                     }
                 }
                 _ => {}
@@ -196,18 +196,18 @@ impl<'a> EventHandler<'a> {
 
     fn handle_up(&self, app: &mut App) -> Result<bool> {
         match app.view {
-            View::TopicList => app.previous_topic(),
-            View::Notifications => app.previous_notification(),
+            View::TopicList => app.topic_state.previous_topic(),
+            View::Notifications => app.notification_state.previous(),
             View::NodeSelect => {
-                if !app.is_node_completion_mode {
-                    app.previous_node();
+                if !app.node_state.is_completion_mode {
+                    app.node_state.previous_node();
                 }
             }
             View::TopicDetail => {
-                if app.show_replies && !app.topic_replies.is_empty() {
-                    app.previous_reply();
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.topic_state.previous_reply();
                 } else {
-                    app.scroll_topic_up();
+                    app.topic_state.scroll_up();
                 }
             }
             _ => {}
@@ -216,49 +216,54 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_forward(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             if key.code == KeyCode::Char('l') {
-                app.insert_node_char('l');
+                app.node_state.insert_char('l');
             } else {
-                app.move_node_cursor_right();
+                app.node_state.move_cursor_right();
             }
         } else {
             match app.view {
                 View::TopicList => {
-                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                    if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                         let topic_id = topic.id;
                         app.view = View::TopicDetail;
-                        app.show_replies = true;
+                        app.topic_state.show_replies = true;
                         app.load_topic_detail(self.client, topic_id).await;
                         app.load_topic_replies(self.client, topic_id, false).await;
                     }
                 }
                 View::Notifications => {
-                    if let Some(notification) = app.notifications.get(app.selected_notification) {
+                    if let Some(notification) = app
+                        .notification_state
+                        .notifications
+                        .get(app.notification_state.selected)
+                    {
                         let topic_id = notification.extract_topic_id();
                         let reply_id = notification.extract_reply_id();
 
                         if let Some(topic_id) = topic_id {
                             app.view = View::TopicDetail;
-                            app.show_replies = true;
+                            app.topic_state.show_replies = true;
                             app.load_topic_detail(self.client, topic_id).await;
                             app.load_topic_replies(self.client, topic_id, false).await;
 
                             if let Some(reply_id) = reply_id {
-                                app.status_message =
+                                app.ui_state.status_message =
                                     format!("Jumping to topic {} (reply #{})", topic_id, reply_id);
                             } else {
-                                app.status_message = format!("Jumping to topic {}", topic_id);
+                                app.ui_state.status_message =
+                                    format!("Jumping to topic {}", topic_id);
                             }
                         } else {
-                            app.status_message =
+                            app.ui_state.status_message =
                                 "No topic link found in this notification".to_string();
                         }
                     }
                 }
                 View::NodeSelect => {
-                    app.select_current_node();
-                    app.reset_node_selection();
+                    app.node_state.select_current_node();
+                    app.node_state.reset_selection();
                     app.view = View::TopicList;
                     app.load_topics(self.client, false).await;
                 }
@@ -271,39 +276,44 @@ impl<'a> EventHandler<'a> {
     async fn handle_enter(&self, app: &mut App) -> Result<bool> {
         match app.view {
             View::TopicList => {
-                if let Some(topic) = app.topics.get(app.selected_topic) {
+                if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
                     app.view = View::TopicDetail;
-                    app.show_replies = true;
+                    app.topic_state.show_replies = true;
                     app.load_topic_detail(self.client, topic_id).await;
                     app.load_topic_replies(self.client, topic_id, false).await;
                 }
             }
             View::Notifications => {
-                if let Some(notification) = app.notifications.get(app.selected_notification) {
+                if let Some(notification) = app
+                    .notification_state
+                    .notifications
+                    .get(app.notification_state.selected)
+                {
                     let topic_id = notification.extract_topic_id();
                     let reply_id = notification.extract_reply_id();
 
                     if let Some(topic_id) = topic_id {
                         app.view = View::TopicDetail;
-                        app.show_replies = true;
+                        app.topic_state.show_replies = true;
                         app.load_topic_detail(self.client, topic_id).await;
                         app.load_topic_replies(self.client, topic_id, false).await;
 
                         if let Some(reply_id) = reply_id {
-                            app.status_message =
+                            app.ui_state.status_message =
                                 format!("Jumping to topic {} (reply #{})", topic_id, reply_id);
                         } else {
-                            app.status_message = format!("Jumping to topic {}", topic_id);
+                            app.ui_state.status_message = format!("Jumping to topic {}", topic_id);
                         }
                     } else {
-                        app.status_message = "No topic link found in this notification".to_string();
+                        app.ui_state.status_message =
+                            "No topic link found in this notification".to_string();
                     }
                 }
             }
             View::NodeSelect => {
-                app.select_current_node();
-                app.reset_node_selection();
+                app.node_state.select_current_node();
+                app.node_state.reset_selection();
                 app.view = View::TopicList;
                 app.load_topics(self.client, false).await;
             }
@@ -313,12 +323,12 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_r(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('r');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('r');
         } else {
             match app.view {
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                         app.open_selected_reply_in_browser();
                     } else {
                         app.open_current_topic_in_browser();
@@ -333,13 +343,13 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_g(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('g');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('g');
         } else {
             match app.view {
                 View::TopicList => app.load_topics(self.client, false).await,
                 View::TopicDetail => {
-                    if let Some(ref topic) = app.current_topic {
+                    if let Some(ref topic) = app.topic_state.current {
                         let topic_id = topic.id;
                         app.load_topic_detail(self.client, topic_id).await;
                         app.load_topic_replies(self.client, topic_id, false).await;
@@ -354,15 +364,15 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_a(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('a');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('a');
         }
         Ok(false)
     }
 
     async fn handle_m(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('m');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('m');
         } else {
             app.view = View::Notifications;
             app.load_notifications(self.client).await;
@@ -371,8 +381,8 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_u(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('u');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('u');
         } else {
             app.view = View::Profile;
             app.load_profile(self.client).await;
@@ -383,14 +393,18 @@ impl<'a> EventHandler<'a> {
     fn handle_s(&self, app: &mut App) -> Result<bool> {
         match app.view {
             View::NodeSelect => {
-                if app.is_node_completion_mode {
-                    app.insert_node_char('s');
+                if app.node_state.is_completion_mode {
+                    app.node_state.insert_char('s');
                 } else {
-                    app.toggle_node_completion_mode();
+                    app.node_state.toggle_completion_mode();
                 }
             }
             _ => {
-                app.enter_completing_read_mode();
+                app.view = View::NodeSelect;
+                app.node_state.completion_input.clear();
+                app.node_state.completion_cursor = 0;
+                app.node_state.is_completion_mode = true;
+                app.node_state.update_suggestions();
             }
         }
         Ok(false)
@@ -398,28 +412,28 @@ impl<'a> EventHandler<'a> {
 
     fn handle_tab(&self, app: &mut App) -> Result<bool> {
         if app.view == View::NodeSelect {
-            app.toggle_node_completion_mode();
+            app.node_state.toggle_completion_mode();
         }
         Ok(false)
     }
 
     async fn handle_t(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('t');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('t');
         } else {
             match app.view {
                 View::TopicList => {
-                    if let Some(topic) = app.topics.get(app.selected_topic) {
+                    if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                         let topic_id = topic.id;
                         app.view = View::TopicDetail;
-                        app.show_replies = true;
+                        app.topic_state.show_replies = true;
                         app.load_topic_detail(self.client, topic_id).await;
                         app.load_topic_replies(self.client, topic_id, false).await;
                     }
                 }
                 View::TopicDetail => {
-                    app.show_replies = !app.show_replies;
-                    app.reset_scroll();
+                    app.topic_state.show_replies = !app.topic_state.show_replies;
+                    app.topic_state.reset_scroll();
                 }
                 _ => {}
             }
@@ -428,12 +442,12 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_o(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('o');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('o');
         } else {
             match app.view {
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                         app.open_selected_reply_in_browser();
                     } else {
                         app.open_current_topic_in_browser();
@@ -448,8 +462,8 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_capital_n(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('N');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('N');
         } else if app.view == View::TopicDetail {
             app.switch_to_next_topic(self.client).await;
         }
@@ -457,8 +471,8 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_capital_p(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('P');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('P');
         } else if app.view == View::TopicDetail {
             app.switch_to_previous_topic(self.client).await;
         }
@@ -479,10 +493,10 @@ impl<'a> EventHandler<'a> {
             _ => return Ok(false),
         };
 
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char(digit);
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char(digit);
         } else {
-            app.switch_node(node);
+            app.node_state.switch_node(node);
             app.load_topics(self.client, false).await;
         }
         Ok(false)
@@ -491,14 +505,15 @@ impl<'a> EventHandler<'a> {
     async fn handle_page_down(&self, app: &mut App) -> Result<bool> {
         match app.view {
             View::TopicList => {
-                app.page += 1;
+                app.node_state.page += 1;
                 app.load_topics(self.client, true).await;
             }
             View::TopicDetail => {
-                if app.show_replies && !app.topic_replies.is_empty() {
-                    app.selected_reply = (app.selected_reply + 5).min(app.topic_replies.len() - 1);
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.topic_state.selected_reply =
+                        (app.topic_state.selected_reply + 5).min(app.topic_state.replies.len() - 1);
                 } else {
-                    app.topic_scroll += 15;
+                    app.topic_state.scroll += 15;
                 }
             }
             _ => {}
@@ -509,22 +524,22 @@ impl<'a> EventHandler<'a> {
     async fn handle_page_up(&self, app: &mut App) -> Result<bool> {
         match app.view {
             View::TopicList => {
-                if app.page > 1 {
-                    app.page -= 1;
+                if app.node_state.page > 1 {
+                    app.node_state.page -= 1;
                     app.load_topics(self.client, false).await;
                 }
             }
             View::TopicDetail => {
-                if app.show_replies && !app.topic_replies.is_empty() {
-                    if app.selected_reply >= 5 {
-                        app.selected_reply -= 5;
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    if app.topic_state.selected_reply >= 5 {
+                        app.topic_state.selected_reply -= 5;
                     } else {
-                        app.selected_reply = 0;
+                        app.topic_state.selected_reply = 0;
                     }
-                } else if app.topic_scroll >= 15 {
-                    app.topic_scroll -= 15;
+                } else if app.topic_state.scroll >= 15 {
+                    app.topic_state.scroll -= 15;
                 } else {
-                    app.topic_scroll = 0;
+                    app.topic_state.scroll = 0;
                 }
             }
             _ => {}
@@ -533,13 +548,13 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_plus(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('+');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('+');
         } else if app.view == View::TopicList {
-            app.page += 1;
+            app.node_state.page += 1;
             app.load_topics(self.client, true).await;
-        } else if app.view == View::TopicDetail && app.show_replies {
-            if let Some(ref topic) = app.current_topic {
+        } else if app.view == View::TopicDetail && app.topic_state.show_replies {
+            if let Some(ref topic) = app.topic_state.current {
                 app.load_topic_replies(self.client, topic.id, true).await;
             }
         }
@@ -547,16 +562,16 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_less_than(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('<');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('<');
         } else {
             match app.view {
-                View::TopicList => app.selected_topic = 0,
-                View::Notifications => app.selected_notification = 0,
+                View::TopicList => app.topic_state.selected = 0,
+                View::Notifications => app.notification_state.selected = 0,
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
-                        app.selected_reply = 0;
-                        app.replies_list_state.select(Some(0));
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                        app.topic_state.selected_reply = 0;
+                        app.topic_state.replies_list_state.select(Some(0));
                     }
                 }
                 _ => {}
@@ -566,24 +581,27 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_greater_than(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char('>');
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char('>');
         } else {
             match app.view {
                 View::TopicList => {
-                    if !app.topics.is_empty() {
-                        app.selected_topic = app.topics.len() - 1;
+                    if !app.topic_state.topics.is_empty() {
+                        app.topic_state.selected = app.topic_state.topics.len() - 1;
                     }
                 }
                 View::Notifications => {
-                    if !app.notifications.is_empty() {
-                        app.selected_notification = app.notifications.len() - 1;
+                    if !app.notification_state.notifications.is_empty() {
+                        app.notification_state.selected =
+                            app.notification_state.notifications.len() - 1;
                     }
                 }
                 View::TopicDetail => {
-                    if app.show_replies && !app.topic_replies.is_empty() {
-                        app.selected_reply = app.topic_replies.len() - 1;
-                        app.replies_list_state.select(Some(app.selected_reply));
+                    if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                        app.topic_state.selected_reply = app.topic_state.replies.len() - 1;
+                        app.topic_state
+                            .replies_list_state
+                            .select(Some(app.topic_state.selected_reply));
                     }
                 }
                 _ => {}
@@ -593,15 +611,15 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_char(&self, app: &mut App, ch: char) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.insert_node_char(ch);
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.insert_char(ch);
         }
         Ok(false)
     }
 
     fn handle_backspace(&self, app: &mut App) -> Result<bool> {
-        if app.view == View::NodeSelect && app.is_node_completion_mode {
-            app.delete_node_char();
+        if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+            app.node_state.delete_char();
         }
         Ok(false)
     }
