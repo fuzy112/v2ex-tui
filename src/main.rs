@@ -22,7 +22,7 @@ use api::{Member, Notification, Reply, Topic, V2exClient};
 use nodes::get_all_nodes;
 use ui::{
     render_error, render_help, render_loading, render_node_select, render_notifications,
-    render_profile, render_replies, render_reply_input, render_status_bar, render_token_input,
+    render_profile, render_replies, render_status_bar, render_token_input,
     render_topic_detail, render_topic_list, Theme,
 };
 
@@ -35,7 +35,6 @@ enum View {
     Help,
     NodeSelect,
     TokenInput,
-    ReplyInput,
 }
 
 #[derive(Debug)]
@@ -73,9 +72,7 @@ struct App {
     node_completion_input: String,
     node_completion_cursor: usize,
     is_node_completion_mode: bool,
-    // Reply input
-    reply_input: String,
-    reply_cursor: usize,
+
 }
 
 impl App {
@@ -125,8 +122,7 @@ impl App {
             node_completion_input: String::new(),
             node_completion_cursor: 0,
             is_node_completion_mode: false,
-            reply_input: String::new(),
-            reply_cursor: 0,
+
         }
     }
 
@@ -699,15 +695,7 @@ fn draw_ui(frame: &mut Frame, app: &mut App) {
                 &app.theme,
             );
         }
-        View::ReplyInput => {
-            render_reply_input(
-                frame,
-                chunks[0],
-                &app.reply_input,
-                app.reply_cursor,
-                &app.theme,
-            );
-        }
+
     }
 
     render_status_bar(frame, chunks[1], &app.status_message, &app.theme);
@@ -724,96 +712,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
 
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                // Handle ReplyInput view separately
-                if app.view == View::ReplyInput {
-                    match key.code {
-                        KeyCode::Char(c)
-                            if !key
-                                .modifiers
-                                .contains(crossterm::event::KeyModifiers::CONTROL) =>
-                        {
-                            app.reply_input.insert(app.reply_cursor, c);
-                            app.reply_cursor += 1;
-                        }
-                        KeyCode::Backspace => {
-                            if app.reply_cursor > 0 {
-                                app.reply_input.remove(app.reply_cursor - 1);
-                                app.reply_cursor -= 1;
-                            }
-                        }
-                        KeyCode::Delete => {
-                            if app.reply_cursor < app.reply_input.chars().count() {
-                                app.reply_input.remove(app.reply_cursor);
-                            }
-                        }
-                        KeyCode::Left => {
-                            if app.reply_cursor > 0 {
-                                app.reply_cursor -= 1;
-                            }
-                        }
-                        KeyCode::Right => {
-                            if app.reply_cursor < app.reply_input.chars().count() {
-                                app.reply_cursor += 1;
-                            }
-                        }
-                        KeyCode::Enter => {
-                            // Submit reply
-                            if let Some(ref topic) = app.current_topic {
-                                let topic_id = topic.id;
-                                let content = app.reply_input.clone();
-                                if !content.trim().is_empty() {
-                                    app.loading = true;
-                                    app.status_message = "Posting reply...".to_string();
-                                    // Redraw to show loading state
-                                    terminal.draw(|frame| draw_ui(frame, &mut app))?;
 
-                                    match client.create_reply(topic_id, content).await {
-                                        Ok(reply) => {
-                                            app.status_message =
-                                                "Reply posted successfully".to_string();
-                                            // Add the new reply to the list
-                                            app.topic_replies.push(reply);
-                                            // Return to topic detail view
-                                            app.view = View::TopicDetail;
-                                            app.reply_input.clear();
-                                            app.reply_cursor = 0;
-                                            // Refresh replies to ensure we have the latest
-                                            app.load_topic_replies(&client, topic_id, false).await;
-                                        }
-                                        Err(e) => {
-                                            app.error =
-                                                Some(format!("Failed to post reply: {}", e));
-                                            app.status_message = "Failed to post reply".to_string();
-                                        }
-                                    }
-                                    app.loading = false;
-                                } else {
-                                    app.status_message = "Reply cannot be empty".to_string();
-                                }
-                            }
-                        }
-                        KeyCode::Char('c')
-                            if key
-                                .modifiers
-                                .contains(crossterm::event::KeyModifiers::CONTROL) =>
-                        {
-                            // Cancel reply input
-                            app.view = View::TopicDetail;
-                            app.reply_input.clear();
-                            app.reply_cursor = 0;
-                            app.status_message = "Reply cancelled".to_string();
-                        }
-                        KeyCode::Esc => {
-                            // Cancel reply input
-                            app.view = View::TopicDetail;
-                            app.reply_input.clear();
-                            app.reply_cursor = 0;
-                            app.status_message = "Reply cancelled".to_string();
-                        }
-                        _ => {}
-                    }
-                    continue; // Skip the main key handling
-                }
 
                 match key.code {
                     KeyCode::Char('q') => {
