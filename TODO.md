@@ -1,88 +1,131 @@
-# V2EX TUI - Improvement Roadmap
+# V2EX TUI - Refactoring & Improvement Plan
 
-本文档跟踪 V2EX TUI 项目的改进计划和任务。按优先级和类别组织。
+Updated refactoring plan based on current codebase analysis. The codebase has already undergone significant refactoring from the original monolithic structure.
 
-## 🚨 高优先级 (急需改进)
+## 🎯 **Current Status**
+- **main.rs**: 239 lines (not 1756 as mentioned in original TODO)
+- **App struct**: Already modularized into focused state structures
+- **Event handling**: Already extracted to dedicated module
+- **Code quality**: Passes `cargo fmt` and `cargo clippy -- -D warnings`
 
-### 代码结构与可维护性
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **拆分巨大的 main.rs** | 将 1756 行的 `main.rs` 拆分为模块化结构 | 待办 | `src/main.rs` (整个文件) |
-| **简化 App 状态** | App 结构体有 ~75 个字段，分组为子结构体 | 待办 | `src/main.rs:40-76` |
-| **抽象事件处理** | 消除重复的 `if app.view == View::NodeSelect && app.is_node_completion_mode` 检查 | 待办 | `src/main.rs:718-800` (多处) |
+## 📋 **Refactoring Phases**
 
-### 测试与质量
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **添加单元测试** | 目前为零单元测试，添加 `#[test]` 函数 | 待办 | 整个项目 |
-| **设置持续集成** | 添加 GitHub Actions 运行 `cargo test`、`cargo clippy`、`cargo fmt --check` | 待办 | `.github/workflows/` |
+### **Phase 1: View Modularization (Priority: HIGH)**
+Extract view-specific rendering logic from `app.rs` into dedicated modules.
 
-## ⚡ 中优先级 (重要改进)
+```
+src/views/
+├── mod.rs              // Re-export all views
+├── topic_list.rs       // Topic list rendering
+├── topic_detail.rs     // Topic + replies split view
+├── notifications.rs    // Notifications list view
+├── profile.rs          // User profile view
+├── node_select.rs      // Node selection view
+└── help.rs             // Help documentation view
+```
 
-### 错误处理与用户体验
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **统一 API 错误处理** | `request()` 和 `request_with_body()` 逻辑重复，统一错误处理 | 待办 | `src/api.rs:231-300`, `258-312` |
-| **改进令牌加载错误** | 提供更清晰的令牌文件缺失/错误信息 | 待办 | `src/api.rs:216-222` |
+**Goals:**
+- Reduce `app.rs` from 421 lines to ~200 lines
+- Create consistent view trait: `trait View { fn render(&self, frame: &mut Frame); }`
+- Improve testability of view components
 
-### 性能优化
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **API 响应缓存** | 添加缓存机制减少重复请求 | 待办 | `src/api.rs` 的 `get_*` 方法 |
-| **优化节点模糊匹配** | 1333 个节点的实时匹配可能影响响应速度 | 待办 | `src/main.rs` 节点选择逻辑 |
+### **Phase 2: Terminal & Browser Abstraction (Priority: MEDIUM)**
+Extract cross-cutting concerns into dedicated modules.
 
-## 🔧 低优先级 (增强功能)
+```
+src/terminal.rs         // Terminal setup/teardown utilities
+src/browser.rs          // Browser operations abstraction
+```
 
-### 配置与自定义
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **主题和快捷键配置** | 支持 `~/.config/v2ex/config.toml` 自定义 | 待办 | `src/ui.rs:10-33` (Theme) |
-| **可配置收藏节点** | 允许用户自定义 1-9 快捷键对应的节点 | 待办 | `src/main.rs:80-94` |
+**Goals:**
+- Centralize terminal management
+- Consistent browser opening logic
+- Reduce duplication in main.rs
 
-### 文档与代码质量
-| 任务 | 描述 | 状态 | 位置/影响 |
-|------|------|------|-----------|
-| **添加代码文档** | 为复杂函数添加 `///` 文档注释 | 待办 | `src/main.rs` 大型函数 |
-| **更新 README 功能列表** | 反映实际可用功能，移除未实现的 `g`/`G` | 待办 | `README.md:62-63` |
-| **检查依赖更新** | 更新 `crossterm`、`ratatui`、`reqwest` 等依赖 | 待办 | `Cargo.toml:9-22` |
+### **Phase 3: Testing Foundation (Priority: MEDIUM)**
+Add comprehensive test coverage and CI setup.
 
-## 🚀 功能增强 (未来版本)
+```
+tests/
+├── integration/
+│   ├── api_mock.rs     // Mock API responses
+│   └── app_flow.rs     // End-to-end tests
+├── unit/
+│   ├── views/          // View rendering tests
+│   └── state/          // State management tests
+.github/workflows/
+└── ci.yml              // GitHub Actions CI
+```
 
-### 新功能建议
-| 任务 | 描述 | 状态 | 影响范围 |
-|------|------|------|----------|
-| **搜索功能** | 添加 `/` 快捷键搜索话题标题 | 待办 | 新视图、API 调用 |
-| **书签/历史记录** | 保存感兴趣的话题到本地文件 | 待办 | 新存储模块 |
-| **通知管理** | 实现 `delete_notification()` 功能 | 待办 | `src/api.rs:326-333` |
-| **节点详情查看** | 使用 `get_node()` 显示节点信息 | 待办 | `src/api.rs:337-342` |
+**Goals:**
+- Unit tests for all view modules
+- Integration tests with mocked API
+- Automated CI/CD pipeline
 
-## 📋 任务状态说明
+## 🚀 **Implementation Order**
 
-- **待办**：尚未开始
-- **进行中**：正在实施
-- **完成**：已完成并测试
-- **阻塞**：依赖其他任务
+### **Step 1: Phase 1 - View Modularization**
+1. Create `src/views/` directory structure
+2. Extract topic list view logic
+3. Extract topic detail view logic
+4. Extract notifications view logic
+5. Extract profile view logic
+6. Extract node selection and help views
+7. Update app.rs to use new view modules
 
-## 🎯 实施顺序建议
+### **Step 2: Phase 2 - Abstraction**
+1. Create `src/terminal.rs` with terminal utilities
+2. Create `src/browser.rs` with browser operations
+3. Update main.rs to use new modules
 
-1. **立即开始**：拆分 `main.rs`、添加单元测试
-2. **短期计划**：统一错误处理、优化事件处理
-3. **中期计划**：配置系统、性能优化
-4. **长期计划**：新功能、更好的用户体验
+### **Step 3: Phase 3 - Testing**
+1. Set up GitHub Actions CI
+2. Add unit tests for view modules
+3. Add integration tests
+4. Add testing documentation
 
-## 📝 贡献指南
+## ✅ **Validation Checklist**
 
-1. 选择要处理的任务，更新状态为"进行中"
-2. 实现时遵循项目代码风格（参考 `AGENTS.md`）
-3. 完成后运行 `cargo fmt`、`cargo clippy -- -D warnings`、`cargo test`
-4. 更新状态为"完成"，添加提交信息
-5. 考虑添加相关测试覆盖
+**After each phase:**
+- [ ] `cargo check` passes
+- [ ] `cargo clippy -- -D warnings` clean
+- [ ] `cargo fmt` formatted
+- [ ] `cargo test` runs (tests to be added)
+- [ ] Manual testing confirms functionality
+- [ ] Commit with comprehensive message
 
-## 🔗 相关资源
+## 📊 **Expected Impact**
 
-- [AGENTS.md](./AGENTS.md) - 开发指南
-- [V2EX API 2.0 文档](https://www.v2ex.com/help/api) - API 参考
-- [现有代码结构](./src/) - 当前实现
+| Metric | Before | After |
+|--------|--------|--------|
+| `app.rs` lines | 421 | ~200 |
+| Test coverage | 0% | >70% |
+| Module complexity | High | Low |
+| Maintainability | Medium | High |
+
+## 🔧 **Development Workflow**
+
+1. **Select task** from implementation order
+2. **Create branch** for the specific phase
+3. **Implement** with incremental commits
+4. **Validate** using checklist above
+5. **Commit** with descriptive messages
+6. **Merge** after review
+
+## 📅 **Timeline Estimate**
+
+- **Phase 1**: 1-2 hours (view modularization)
+- **Phase 2**: 30-45 minutes (abstraction)
+- **Phase 3**: 1-2 hours (testing + CI)
+
+**Total**: 2.5-4.5 hours for complete refactoring
+
+## 📝 **Next Steps**
+
+1. Proceed with Phase 1: View Modularization
+2. Start with creating `src/views/` directory structure
+3. Extract topic list view as the first module
 
 ---
-*最后更新: 2025-02-07*
+*Last updated: 2025-02-07*
+*Status: Ready for implementation*
