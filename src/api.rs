@@ -92,10 +92,6 @@ pub struct Reply {
     pub last_modified: Option<i64>,
 }
 
-
-
-
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum NotificationPayload {
@@ -358,8 +354,4 @@ impl V2exClient {
             self.request(reqwest::Method::GET, &endpoint).await?;
         Ok(response.result.unwrap_or_default())
     }
-
-
-
-
 }
