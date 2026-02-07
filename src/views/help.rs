@@ -34,6 +34,7 @@ Actions:
   g         - Refresh current view
   m         - Go to notifications (messages)
   u         - Go to profile (user)
+  a         - Go to aggregated topics (RSS feeds)
 
   q / Esc   - Quit / Go back
 
@@ -42,6 +43,15 @@ Topic List:
   1-9       - Quick switch to node (1:python, 2:programmer, etc.)
   Enter / t - Open selected topic
   +         - Load more topics
+
+Aggregated Topics:
+  a         - Switch to aggregated view
+  t / c / p - Switch to tech/creative/play tab
+  a / j / d - Switch to apple/jobs/deals tab  
+  y / q / i - Switch to city/qna/index tab
+  n / p     - Navigate topics
+  Enter / l - Open selected topic in browser
+  o         - Open selected topic in browser
 
 Node Selection:
   n / p     - Navigate node list

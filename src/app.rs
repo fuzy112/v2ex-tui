@@ -5,8 +5,9 @@ use ratatui::{
 
 use crate::api::{Member, V2exClient};
 use crate::browser::Browser;
-use crate::state::{NodeState, NotificationState, TokenState, TopicState, UiState};
+use crate::state::{AggregateState, NodeState, NotificationState, TokenState, TopicState, UiState};
 use crate::ui::{render_error, render_loading, render_status_bar, render_token_input};
+use crate::views::aggregate::AggregateView;
 use crate::views::help::HelpView;
 use crate::views::node_select::NodeSelectView;
 use crate::views::notifications::NotificationsView;
@@ -23,6 +24,7 @@ pub enum View {
     Help,
     NodeSelect,
     TokenInput,
+    Aggregate,
 }
 
 #[derive(Debug)]
@@ -34,6 +36,7 @@ pub struct App {
     pub node_state: NodeState,
     pub token_state: TokenState,
     pub ui_state: UiState,
+    pub aggregate_state: AggregateState,
 }
 
 impl App {
@@ -46,6 +49,7 @@ impl App {
             node_state: NodeState::new(),
             token_state: TokenState::default(),
             ui_state: UiState::new(),
+            aggregate_state: AggregateState::new(),
         }
     }
 
@@ -186,6 +190,33 @@ impl App {
         self.ui_state.loading = false;
     }
 
+    pub async fn load_aggregate(&mut self, client: &V2exClient) {
+        self.ui_state.loading = true;
+        self.ui_state.error = None;
+
+        match client.get_rss_feed(&self.aggregate_state.current_tab).await {
+            Ok(items) => {
+                self.aggregate_state.items = items;
+                self.aggregate_state.selected = 0;
+                self.ui_state.status_message = format!(
+                    "Loaded {} aggregated topics from {} tab",
+                    self.aggregate_state.items.len(),
+                    self.aggregate_state.current_tab
+                );
+            }
+            Err(e) => {
+                self.ui_state.error = Some(format!("Failed to load aggregated topics: {}", e));
+            }
+        }
+
+        self.ui_state.loading = false;
+    }
+
+    pub async fn switch_aggregate_tab(&mut self, client: &V2exClient, tab: &str) {
+        self.aggregate_state.switch_tab(tab);
+        self.load_aggregate(client).await;
+    }
+
     // Topic navigation in detail view
     pub async fn switch_to_next_topic(&mut self, client: &V2exClient) {
         if let Some(current_index) = self.topic_state.find_current_topic_index() {
@@ -287,6 +318,23 @@ impl App {
             } else {
                 self.ui_state.status_message =
                     "No topic link found in this notification".to_string();
+            }
+        }
+    }
+
+    pub fn open_selected_aggregate_in_browser(&mut self) {
+        if let Some(item) = self
+            .aggregate_state
+            .items
+            .get(self.aggregate_state.selected)
+        {
+            match Browser::open_url(&item.link) {
+                Ok(result) => {
+                    self.ui_state.status_message = result.to_string();
+                }
+                Err(e) => {
+                    self.ui_state.error = Some(format!("Failed to open browser: {}", e));
+                }
             }
         }
     }
@@ -407,6 +455,23 @@ impl App {
                     self.token_state.cursor,
                     &self.ui_state.theme,
                 );
+            }
+            View::Aggregate => {
+                if self.ui_state.loading {
+                    render_loading(frame, chunks[0], &self.ui_state.theme);
+                } else if let Some(ref error) = self.ui_state.error {
+                    render_error(frame, chunks[0], error, &self.ui_state.theme);
+                } else {
+                    let aggregate_view = AggregateView::new();
+                    aggregate_view.render(
+                        frame,
+                        chunks[0],
+                        &self.aggregate_state.items,
+                        self.aggregate_state.selected,
+                        &self.aggregate_state.current_tab,
+                        &self.ui_state.theme,
+                    );
+                }
             }
         }
 

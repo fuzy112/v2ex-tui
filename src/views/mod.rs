@@ -1,3 +1,4 @@
+pub mod aggregate;
 pub mod help;
 pub mod node_select;
 pub mod notifications;

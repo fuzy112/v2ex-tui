@@ -27,7 +27,7 @@ impl<'a> EventHandler<'a> {
             KeyCode::Enter => self.handle_enter(app).await,
             KeyCode::Char('r') => self.handle_r(app, key),
             KeyCode::Char('g') => self.handle_g(app, key).await,
-            KeyCode::Char('a') => self.handle_a(app, key),
+            KeyCode::Char('a') => self.handle_a(app, key).await,
             KeyCode::Char('m') => self.handle_m(app, key).await,
             KeyCode::Char('u') => self.handle_u(app, key).await,
             KeyCode::Char('s') => self.handle_s(app),
@@ -50,7 +50,7 @@ impl<'a> EventHandler<'a> {
             KeyCode::Char('+') => self.handle_plus(app, key).await,
             KeyCode::Char('<') => self.handle_less_than(app, key),
             KeyCode::Char('>') => self.handle_greater_than(app, key),
-            KeyCode::Char(ch) => self.handle_char(app, ch),
+            KeyCode::Char(ch) => self.handle_char(app, ch).await,
             KeyCode::Backspace => self.handle_backspace(app),
             _ => Ok(false),
         }
@@ -142,6 +142,7 @@ impl<'a> EventHandler<'a> {
                         app.topic_state.scroll_down();
                     }
                 }
+                View::Aggregate => app.aggregate_state.next_item(),
                 _ => {}
             }
         }
@@ -164,6 +165,7 @@ impl<'a> EventHandler<'a> {
                     app.topic_state.scroll_down();
                 }
             }
+            View::Aggregate => app.aggregate_state.next_item(),
             _ => {}
         }
         Ok(false)
@@ -188,6 +190,7 @@ impl<'a> EventHandler<'a> {
                         app.topic_state.scroll_up();
                     }
                 }
+                View::Aggregate => app.aggregate_state.previous_item(),
                 _ => {}
             }
         }
@@ -210,6 +213,7 @@ impl<'a> EventHandler<'a> {
                     app.topic_state.scroll_up();
                 }
             }
+            View::Aggregate => app.aggregate_state.previous_item(),
             _ => {}
         }
         Ok(false)
@@ -267,6 +271,9 @@ impl<'a> EventHandler<'a> {
                     app.view = View::TopicList;
                     app.load_topics(self.client, false).await;
                 }
+                View::Aggregate => {
+                    app.open_selected_aggregate_in_browser();
+                }
                 _ => {}
             }
         }
@@ -317,6 +324,9 @@ impl<'a> EventHandler<'a> {
                 app.view = View::TopicList;
                 app.load_topics(self.client, false).await;
             }
+            View::Aggregate => {
+                app.open_selected_aggregate_in_browser();
+            }
             _ => {}
         }
         Ok(false)
@@ -363,9 +373,16 @@ impl<'a> EventHandler<'a> {
         Ok(false)
     }
 
-    fn handle_a(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+    async fn handle_a(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('a');
+        } else if app.view == View::Aggregate {
+            // Already in aggregate view, refresh
+            app.load_aggregate(self.client).await;
+        } else {
+            // Switch to aggregate view and load data
+            app.view = View::Aggregate;
+            app.load_aggregate(self.client).await;
         }
         Ok(false)
     }
@@ -455,6 +472,7 @@ impl<'a> EventHandler<'a> {
                 }
                 View::TopicList => app.open_selected_topic_in_browser(),
                 View::Notifications => app.open_notification_in_browser(),
+                View::Aggregate => app.open_selected_aggregate_in_browser(),
                 _ => {}
             }
         }
@@ -610,9 +628,27 @@ impl<'a> EventHandler<'a> {
         Ok(false)
     }
 
-    fn handle_char(&self, app: &mut App, ch: char) -> Result<bool> {
+    async fn handle_char(&self, app: &mut App, ch: char) -> Result<bool> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char(ch);
+        } else if app.view == View::Aggregate {
+            // Handle tab switching in aggregate view
+            let tab = match ch {
+                't' => Some("tech"),
+                'c' => Some("creative"),
+                'p' => Some("play"),
+                'a' => Some("apple"),
+                'j' => Some("jobs"),
+                'd' => Some("deals"),
+                'y' => Some("city"),
+                'q' => Some("qna"),
+                'i' => Some("index"),
+                _ => None,
+            };
+            if let Some(tab) = tab {
+                app.switch_aggregate_tab(self.client, tab).await;
+                return Ok(false);
+            }
         }
         Ok(false)
     }

@@ -352,3 +352,101 @@ impl V2exClient {
         Ok(response.result.unwrap_or_default())
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct RssItem {
+    pub title: String,
+    pub link: String,
+    pub date: String,
+    #[allow(dead_code)] // Not currently used, but kept for future display
+    pub author: Option<String>,
+}
+
+impl V2exClient {
+    pub async fn get_rss_feed(&self, tab: &str) -> Result<Vec<RssItem>> {
+        use anyhow::Context;
+        use atom_syndication::Feed;
+
+        let url = if tab == "index" {
+            "https://www.v2ex.com/index.xml".to_string()
+        } else {
+            format!("https://www.v2ex.com/feed/tab/{}.xml", tab)
+        };
+
+        // Create a client with custom settings for RSS fetching
+        let rss_client = reqwest::Client::builder()
+            .user_agent("Mozilla/5.0 (compatible; v2ex-tui/0.1.0)")
+            .danger_accept_invalid_certs(true)
+            .build()
+            .context("Failed to create RSS client")?;
+
+        let response = rss_client
+            .get(&url)
+            .send()
+            .await
+            .with_context(|| format!("Failed to fetch RSS feed from {}", url))?;
+
+        let content = response
+            .bytes()
+            .await
+            .with_context(|| format!("Failed to read RSS feed content from {}", url))?;
+
+        // Convert to string for debugging
+        let content_str = String::from_utf8_lossy(&content);
+
+        let feed = match Feed::read_from(&content[..]) {
+            Ok(feed) => feed,
+            Err(e) => {
+                let preview = if content_str.len() > 200 {
+                    &content_str[..200]
+                } else {
+                    &content_str
+                };
+                return Err(anyhow::anyhow!(
+                    "Failed to parse Atom feed from {}: {}. Content preview: {}",
+                    url,
+                    e,
+                    preview
+                ));
+            }
+        };
+
+        let items: Vec<RssItem> = feed
+            .entries()
+            .iter()
+            .map(|entry| {
+                let title = entry.title().to_string();
+                let link = entry
+                    .links()
+                    .first()
+                    .map(|link| link.href().to_string())
+                    .unwrap_or_else(|| "".to_string());
+
+                // Format date
+                let date = entry
+                    .published()
+                    .or_else(|| Some(entry.updated()))
+                    .map(|d| {
+                        // Convert to chrono DateTime and format as YYYY-MM-DD HH:MM
+                        let dt: chrono::DateTime<chrono::Utc> = (*d).into();
+                        dt.format("%Y-%m-%d %H:%M").to_string()
+                    })
+                    .unwrap_or_else(|| "Unknown date".to_string());
+
+                let author = entry
+                    .authors()
+                    .first()
+                    .map(|author| author.name().to_string());
+
+                RssItem {
+                    title,
+                    link,
+                    date,
+                    author,
+                }
+            })
+            .collect();
+
+        Ok(items)
+    }
+}

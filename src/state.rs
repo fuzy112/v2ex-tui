@@ -1,4 +1,43 @@
+use crate::api::RssItem;
 use ratatui::widgets::ListState;
+
+#[derive(Debug, Default)]
+pub struct AggregateState {
+    pub items: Vec<RssItem>,
+    pub selected: usize,
+    pub current_tab: String,
+}
+
+impl AggregateState {
+    pub fn new() -> Self {
+        Self {
+            items: Vec::new(),
+            selected: 0,
+            current_tab: "index".to_string(),
+        }
+    }
+
+    pub fn next_item(&mut self) {
+        if !self.items.is_empty() {
+            self.selected = (self.selected + 1) % self.items.len();
+        }
+    }
+
+    pub fn previous_item(&mut self) {
+        if !self.items.is_empty() {
+            self.selected = if self.selected == 0 {
+                self.items.len() - 1
+            } else {
+                self.selected - 1
+            };
+        }
+    }
+
+    pub fn switch_tab(&mut self, tab: &str) {
+        self.current_tab = tab.to_string();
+        self.selected = 0;
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -192,6 +231,81 @@ mod tests {
             payload_rendered: None,
             created: 0,
         }
+    }
+
+    fn create_test_rss_item(id: usize) -> crate::api::RssItem {
+        crate::api::RssItem {
+            title: format!("Test RSS item {}", id),
+            link: format!("https://example.com/{}", id),
+            date: "2026-02-07 12:00".to_string(),
+            author: Some("test".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_aggregate_state_next_item() {
+        let mut state = AggregateState::new();
+
+        // Empty items - should not panic
+        state.next_item();
+        assert_eq!(state.selected, 0);
+
+        // Add items
+        state.items = vec![
+            create_test_rss_item(1),
+            create_test_rss_item(2),
+            create_test_rss_item(3),
+        ];
+
+        // Next item
+        state.next_item();
+        assert_eq!(state.selected, 1);
+
+        state.next_item();
+        assert_eq!(state.selected, 2);
+
+        // Wrap around
+        state.next_item();
+        assert_eq!(state.selected, 0);
+    }
+
+    #[test]
+    fn test_aggregate_state_previous_item() {
+        let mut state = AggregateState::new();
+
+        // Empty items - should not panic
+        state.previous_item();
+        assert_eq!(state.selected, 0);
+
+        // Add items
+        state.items = vec![
+            create_test_rss_item(1),
+            create_test_rss_item(2),
+            create_test_rss_item(3),
+        ];
+        state.selected = 1;
+
+        // Previous item
+        state.previous_item();
+        assert_eq!(state.selected, 0);
+
+        // Wrap around
+        state.previous_item();
+        assert_eq!(state.selected, 2);
+    }
+
+    #[test]
+    fn test_aggregate_state_switch_tab() {
+        let mut state = AggregateState::new();
+        assert_eq!(state.current_tab, "index");
+
+        state.switch_tab("tech");
+        assert_eq!(state.current_tab, "tech");
+        assert_eq!(state.selected, 0);
+
+        state.switch_tab("creative");
+        assert_eq!(state.current_tab, "creative");
+        assert_eq!(state.selected, 0);
     }
 }
 
