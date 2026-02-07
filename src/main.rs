@@ -727,7 +727,11 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                 // Handle ReplyInput view separately
                 if app.view == View::ReplyInput {
                     match key.code {
-                        KeyCode::Char(c) if !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+                        KeyCode::Char(c)
+                            if !key
+                                .modifiers
+                                .contains(crossterm::event::KeyModifiers::CONTROL) =>
+                        {
                             app.reply_input.insert(app.reply_cursor, c);
                             app.reply_cursor += 1;
                         }
@@ -762,7 +766,8 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                     app.status_message = "Posting reply...".to_string();
                                     match client.create_reply(topic_id, content).await {
                                         Ok(reply) => {
-                                            app.status_message = "Reply posted successfully".to_string();
+                                            app.status_message =
+                                                "Reply posted successfully".to_string();
                                             // Add the new reply to the list
                                             app.topic_replies.push(reply);
                                             // Return to topic detail view
@@ -773,7 +778,8 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                                             app.load_topic_replies(&client, topic_id, false).await;
                                         }
                                         Err(e) => {
-                                            app.error = Some(format!("Failed to post reply: {}", e));
+                                            app.error =
+                                                Some(format!("Failed to post reply: {}", e));
                                             app.status_message = "Failed to post reply".to_string();
                                         }
                                     }
@@ -784,7 +790,9 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                             }
                         }
                         KeyCode::Char('c')
-                            if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) =>
+                            if key
+                                .modifiers
+                                .contains(crossterm::event::KeyModifiers::CONTROL) =>
                         {
                             // Cancel reply input
                             app.view = View::TopicDetail;
@@ -803,7 +811,7 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     }
                     continue; // Skip the main key handling
                 }
-                
+
                 match key.code {
                     KeyCode::Char('q') => {
                         if app.view == View::NodeSelect && app.is_node_completion_mode {
@@ -1130,6 +1138,19 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     KeyCode::Char('r') => {
                         if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('r');
+                        } else if app.view == View::TopicDetail {
+                            // Enter reply input mode
+                            app.view = View::ReplyInput;
+                            app.reply_input.clear();
+                            app.reply_cursor = 0;
+                            app.status_message =
+                                "Type your reply. Press Enter to submit, Ctrl+C to cancel"
+                                    .to_string();
+                        }
+                    }
+                    KeyCode::Char('g') => {
+                        if app.view == View::NodeSelect && app.is_node_completion_mode {
+                            app.insert_node_char('g');
                         } else {
                             match app.view {
                                 View::TopicList => app.load_topics(&client, false).await,
@@ -1149,12 +1170,6 @@ async fn run_app(terminal: &mut Terminal<impl Backend>, client: V2exClient) -> R
                     KeyCode::Char('a') => {
                         if app.view == View::NodeSelect && app.is_node_completion_mode {
                             app.insert_node_char('a');
-                        } else if app.view == View::TopicDetail {
-                            // Enter reply input mode
-                            app.view = View::ReplyInput;
-                            app.reply_input.clear();
-                            app.reply_cursor = 0;
-                            app.status_message = "Type your reply. Press Enter to submit, Ctrl+C to cancel".to_string();
                         }
                     }
                     KeyCode::Char('m') => {
@@ -1556,7 +1571,10 @@ fn print_help() {
     println!("  n/p or ↓/↑     Move down/up (next/previous)");
     println!("  h/← or l/→     Navigate back/forward");
     println!("  Enter/t        Open selected topic/notification");
-    println!("  r              Refresh");
+    println!(
+        "  g              Refresh
+  r              Reply (in topic detail)"
+    );
     println!("  m              Notifications (messages)");
     println!("  u              Profile (user)");
     println!("  s              Select node from menu (Tab: manual input)");

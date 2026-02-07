@@ -355,7 +355,12 @@ impl V2exClient {
         response.result.context("No reply data in response")
     }
 
-    pub async fn create_topic(&self, title: String, content: String, node_name: String) -> Result<Topic> {
+    pub async fn create_topic(
+        &self,
+        title: String,
+        content: String,
+        node_name: String,
+    ) -> Result<Topic> {
         let endpoint = "topics";
         let request = CreateTopicRequest {
             title,
