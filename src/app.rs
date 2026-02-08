@@ -219,39 +219,130 @@ impl App {
         self.load_aggregate(client).await;
     }
 
+    // Helper to find current topic index based on previous view
+    fn find_current_topic_index_in_previous_view(&self) -> Option<(usize, View)> {
+        let current_topic_id = self.topic_state.current.as_ref()?.id;
+
+        match self.previous_view {
+            Some(View::Aggregate) => {
+                // Find in aggregate items
+                self.aggregate_state
+                    .items
+                    .iter()
+                    .position(|item| item.extract_topic_id() == Some(current_topic_id))
+                    .map(|index| (index, View::Aggregate))
+            }
+            Some(View::TopicList) => {
+                // Find in topic list
+                self.topic_state
+                    .find_current_topic_index()
+                    .map(|index| (index, View::TopicList))
+            }
+            Some(View::Notifications) => {
+                // Find in notifications (if applicable)
+                self.topic_state
+                    .find_current_topic_index()
+                    .map(|index| (index, View::TopicList))
+            }
+            _ => None,
+        }
+    }
+
     // Topic navigation in detail view
     pub async fn switch_to_next_topic(&mut self, client: &V2exClient) {
-        if let Some(current_index) = self.topic_state.find_current_topic_index() {
-            let next_index = (current_index + 1) % self.topic_state.topics.len();
-            if let Some(next_topic) = self.topic_state.topics.get(next_index) {
-                let topic_id = next_topic.id;
-                self.topic_state.current = None;
-                self.topic_state.replies.clear();
-                self.topic_state.reset_scroll();
-                self.load_topic_detail(client, topic_id).await;
-                self.load_topic_replies(client, topic_id, false).await;
-                self.ui_state.status_message =
-                    format!("Switched to next topic (#{})", next_index + 1);
+        if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
+        {
+            match source_view {
+                View::Aggregate => {
+                    let items_len = self.aggregate_state.items.len();
+                    if items_len == 0 {
+                        return;
+                    }
+                    let next_index = (current_index + 1) % items_len;
+                    if let Some(next_item) = self.aggregate_state.items.get(next_index) {
+                        if let Some(topic_id) = next_item.extract_topic_id() {
+                            self.topic_state.current = None;
+                            self.topic_state.replies.clear();
+                            self.topic_state.reset_scroll();
+                            self.load_topic_detail(client, topic_id).await;
+                            self.load_topic_replies(client, topic_id, false).await;
+                            self.ui_state.status_message =
+                                format!("Switched to next aggregated topic (#{})", next_index + 1);
+                        }
+                    }
+                }
+                View::TopicList | View::Notifications => {
+                    let topics_len = self.topic_state.topics.len();
+                    if topics_len == 0 {
+                        return;
+                    }
+                    let next_index = (current_index + 1) % topics_len;
+                    if let Some(next_topic) = self.topic_state.topics.get(next_index) {
+                        let topic_id = next_topic.id;
+                        self.topic_state.current = None;
+                        self.topic_state.replies.clear();
+                        self.topic_state.reset_scroll();
+                        self.load_topic_detail(client, topic_id).await;
+                        self.load_topic_replies(client, topic_id, false).await;
+                        self.ui_state.status_message =
+                            format!("Switched to next topic (#{})", next_index + 1);
+                    }
+                }
+                _ => {}
             }
         }
     }
 
     pub async fn switch_to_previous_topic(&mut self, client: &V2exClient) {
-        if let Some(current_index) = self.topic_state.find_current_topic_index() {
-            let prev_index = if current_index == 0 {
-                self.topic_state.topics.len() - 1
-            } else {
-                current_index - 1
-            };
-            if let Some(prev_topic) = self.topic_state.topics.get(prev_index) {
-                let topic_id = prev_topic.id;
-                self.topic_state.current = None;
-                self.topic_state.replies.clear();
-                self.topic_state.reset_scroll();
-                self.load_topic_detail(client, topic_id).await;
-                self.load_topic_replies(client, topic_id, false).await;
-                self.ui_state.status_message =
-                    format!("Switched to previous topic (#{})", prev_index + 1);
+        if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
+        {
+            match source_view {
+                View::Aggregate => {
+                    let items_len = self.aggregate_state.items.len();
+                    if items_len == 0 {
+                        return;
+                    }
+                    let prev_index = if current_index == 0 {
+                        items_len - 1
+                    } else {
+                        current_index - 1
+                    };
+                    if let Some(prev_item) = self.aggregate_state.items.get(prev_index) {
+                        if let Some(topic_id) = prev_item.extract_topic_id() {
+                            self.topic_state.current = None;
+                            self.topic_state.replies.clear();
+                            self.topic_state.reset_scroll();
+                            self.load_topic_detail(client, topic_id).await;
+                            self.load_topic_replies(client, topic_id, false).await;
+                            self.ui_state.status_message = format!(
+                                "Switched to previous aggregated topic (#{})",
+                                prev_index + 1
+                            );
+                        }
+                    }
+                }
+                View::TopicList | View::Notifications => {
+                    let topics_len = self.topic_state.topics.len();
+                    if topics_len == 0 {
+                        return;
+                    }
+                    let prev_index = if current_index == 0 {
+                        topics_len - 1
+                    } else {
+                        current_index - 1
+                    };
+                    if let Some(prev_topic) = self.topic_state.topics.get(prev_index) {
+                        let topic_id = prev_topic.id;
+                        self.topic_state.current = None;
+                        self.topic_state.replies.clear();
+                        self.topic_state.reset_scroll();
+                        self.load_topic_detail(client, topic_id).await;
+                        self.load_topic_replies(client, topic_id, false).await;
+                        self.ui_state.status_message =
+                            format!("Switched to previous topic (#{})", prev_index + 1);
+                    }
+                }
+                _ => {}
             }
         }
     }
