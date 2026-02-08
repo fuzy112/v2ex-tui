@@ -362,6 +362,23 @@ pub struct RssItem {
     pub author: Option<String>,
 }
 
+impl RssItem {
+    /// Extract topic ID from RSS item link
+    /// V2EX links are typically: https://www.v2ex.com/t/123456 or https://www.v2ex.com/t/123456#reply1
+    pub fn extract_topic_id(&self) -> Option<i64> {
+        // Find /t/ pattern in the link
+        if let Some(t_pos) = self.link.find("/t/") {
+            let after_t = &self.link[t_pos + 3..];
+            let end_pos = after_t
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(after_t.len());
+            after_t[..end_pos].parse().ok()
+        } else {
+            None
+        }
+    }
+}
+
 impl V2exClient {
     pub async fn get_rss_feed(&self, tab: &str) -> Result<Vec<RssItem>> {
         use anyhow::Context;

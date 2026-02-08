@@ -72,7 +72,7 @@ impl<'a> EventHandler<'a> {
                     Ok(false)
                 }
                 _ => {
-                    app.view = View::TopicList;
+                    app.view = app.previous_view.unwrap_or(View::TopicList);
                     app.ui_state.error = None;
                     Ok(false)
                 }
@@ -88,7 +88,7 @@ impl<'a> EventHandler<'a> {
                 Ok(false)
             }
             _ => {
-                app.view = View::TopicList;
+                app.view = app.previous_view.unwrap_or(View::TopicList);
                 app.ui_state.error = None;
                 Ok(false)
             }
@@ -99,6 +99,7 @@ impl<'a> EventHandler<'a> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('?');
         } else {
+            app.previous_view = Some(app.view);
             app.view = View::Help;
         }
         Ok(false)
@@ -251,6 +252,7 @@ impl<'a> EventHandler<'a> {
                         let reply_id = notification.extract_reply_id();
 
                         if let Some(topic_id) = topic_id {
+                            app.previous_view = Some(app.view);
                             app.view = View::TopicDetail;
                             app.topic_state.show_replies = true;
                             app.load_topic_detail(self.client, topic_id).await;
@@ -289,6 +291,7 @@ impl<'a> EventHandler<'a> {
             View::TopicList => {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
+                    app.previous_view = Some(app.view);
                     app.view = View::TopicDetail;
                     app.topic_state.show_replies = true;
                     app.load_topic_detail(self.client, topic_id).await;
@@ -329,7 +332,23 @@ impl<'a> EventHandler<'a> {
                 app.load_topics(self.client, false).await;
             }
             View::Aggregate => {
-                app.open_selected_aggregate_in_browser();
+                if let Some(item) = app.aggregate_state.items.get(app.aggregate_state.selected) {
+                    let topic_id = item.extract_topic_id();
+
+                    if let Some(topic_id) = topic_id {
+                        app.previous_view = Some(app.view);
+                        app.view = View::TopicDetail;
+                        app.topic_state.show_replies = true;
+                        app.load_topic_detail(self.client, topic_id).await;
+                        app.load_topic_replies(self.client, topic_id, false).await;
+                        app.ui_state.status_message =
+                            format!("Loading topic {} from RSS", topic_id);
+                    } else {
+                        app.ui_state.status_message =
+                            "No topic ID found in RSS link, opening in browser instead".to_string();
+                        app.open_selected_aggregate_in_browser();
+                    }
+                }
             }
             _ => {}
         }
@@ -386,6 +405,7 @@ impl<'a> EventHandler<'a> {
             app.switch_aggregate_tab(self.client, "apple").await;
         } else {
             // Switch to aggregate view and load data
+            app.previous_view = Some(app.view);
             app.view = View::Aggregate;
             app.load_aggregate(self.client).await;
         }
@@ -396,6 +416,7 @@ impl<'a> EventHandler<'a> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('m');
         } else {
+            app.previous_view = Some(app.view);
             app.view = View::Notifications;
             app.load_notifications(self.client).await;
         }
@@ -406,6 +427,7 @@ impl<'a> EventHandler<'a> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('u');
         } else {
+            app.previous_view = Some(app.view);
             app.view = View::Profile;
             app.load_profile(self.client).await;
         }
@@ -422,6 +444,7 @@ impl<'a> EventHandler<'a> {
                 }
             }
             _ => {
+                app.previous_view = Some(app.view);
                 app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;

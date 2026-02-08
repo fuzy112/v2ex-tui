@@ -46,12 +46,13 @@ Topic List:
 
 Aggregated Topics:
   a         - Switch to aggregated view
-  t / c / p - Switch to tech/creative/play tab
+  t / c / k - Switch to tech/creative/play tab
   a / j / d - Switch to apple/jobs/deals tab  
   y / q / i - Switch to city/qna/index tab
   n / p     - Navigate topics
-  Enter / l - Open selected topic in browser
-  o         - Open selected topic in browser
+  Enter     - Open selected topic in app
+  l / o     - Open selected topic in browser
+  g         - Refresh current view
 
 Node Selection:
   n / p     - Navigate node list

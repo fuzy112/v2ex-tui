@@ -30,6 +30,7 @@ pub enum View {
 #[derive(Debug)]
 pub struct App {
     pub view: View,
+    pub previous_view: Option<View>,
     pub topic_state: TopicState,
     pub notification_state: NotificationState,
     pub profile: Option<Member>,
@@ -43,6 +44,7 @@ impl App {
     pub fn new() -> Self {
         Self {
             view: View::Aggregate,
+            previous_view: None,
             topic_state: TopicState::default(),
             notification_state: NotificationState::default(),
             profile: None,
