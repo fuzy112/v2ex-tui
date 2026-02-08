@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::fmt;
 
 /// Browser operation result types
@@ -32,10 +32,29 @@ pub struct Browser;
 impl Browser {
     /// Open URL in default browser with consistent error handling
     pub fn open_url(url: impl AsRef<str>) -> Result<BrowserResult> {
-        let url = url.as_ref();
-        webbrowser::open(url)
-            .map(|_| BrowserResult::success(url, format!("Opened {} in browser", url)))
-            .context("Failed to open browser")
+        let url_str = url.as_ref().to_string();
+        let url_for_thread = url_str.clone();
+
+        // Spawn a thread to open browser without blocking the main event loop
+        std::thread::spawn(move || {
+            match webbrowser::open(&url_for_thread) {
+                Ok(_) => {
+                    // Log success but don't block
+                    // In a more sophisticated implementation, we could use a channel
+                    // to report success/failure back to the main thread
+                }
+                Err(e) => {
+                    // Log error but don't block
+                    eprintln!("Failed to open browser for {}: {}", url_for_thread, e);
+                }
+            }
+        });
+
+        // Return success immediately (non-blocking)
+        Ok(BrowserResult::success(
+            &url_str,
+            format!("Opening {} in browser", url_str),
+        ))
     }
 
     /// Open V2EX topic in browser
