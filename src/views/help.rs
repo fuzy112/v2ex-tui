@@ -48,7 +48,7 @@ Aggregated Topics:
   a         - Switch to aggregated view
   t / c / k - Switch to tech/creative/play tab
   a / j / d - Switch to apple/jobs/deals tab  
-  y / q / i - Switch to city/qna/index tab
+  y / z / i - Switch to city/qna/index tab
   n / p     - Navigate topics
   Enter     - Open selected topic in app
   l / o     - Open selected topic in browser

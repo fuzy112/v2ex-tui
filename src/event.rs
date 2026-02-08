@@ -61,9 +61,8 @@ impl<'a> EventHandler<'a> {
             app.node_state.insert_char('q');
             Ok(false)
         } else if app.view == View::Aggregate {
-            // Switch to qna tab in aggregate view
-            app.switch_aggregate_tab(self.client, "qna").await;
-            Ok(false)
+            // q should quit from aggregate view, not switch tab
+            Ok(true)
         } else {
             match app.view {
                 View::TopicList => Ok(true),
@@ -83,6 +82,7 @@ impl<'a> EventHandler<'a> {
     fn handle_esc(&self, app: &mut App) -> Result<bool> {
         match app.view {
             View::TopicList => Ok(true),
+            View::Aggregate => Ok(true),
             View::NodeSelect => {
                 app.view = View::TopicList;
                 Ok(false)
@@ -672,7 +672,7 @@ impl<'a> EventHandler<'a> {
                 'j' => Some("jobs"),
                 'd' => Some("deals"),
                 'y' => Some("city"),
-                'q' => Some("qna"),
+                'z' => Some("qna"),
                 'i' => Some("index"),
                 _ => None,
             };

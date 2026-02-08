@@ -68,10 +68,10 @@ impl AggregateView {
             Span::styled(":deals ", tab_style("deals")),
             Span::styled("y", key_style("city")),
             Span::styled(":city ", tab_style("city")),
-            Span::styled("q", key_style("qna")),
+            Span::styled("z", key_style("qna")),
             Span::styled(":qna ", tab_style("qna")),
-            Span::styled("i", Style::default().fg(theme.accent)),
-            Span::styled(":index", Style::default().fg(theme.foreground)),
+            Span::styled("i", key_style("index")),
+            Span::styled(":index", tab_style("index")),
         ];
         let header = ratatui::widgets::Paragraph::new(Line::from(header_spans))
             .style(Style::default().bg(theme.background));
