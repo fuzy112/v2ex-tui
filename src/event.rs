@@ -15,7 +15,7 @@ impl<'a> EventHandler<'a> {
 
     pub async fn handle_key(&mut self, app: &mut App, key: KeyEvent) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => self.handle_q(app, key),
+            KeyCode::Char('q') => self.handle_q(app, key).await,
             KeyCode::Esc => self.handle_esc(app),
             KeyCode::Char('?') => self.handle_help(app, key),
             KeyCode::Char('h') | KeyCode::Left => self.handle_back(app, key),
@@ -56,9 +56,13 @@ impl<'a> EventHandler<'a> {
         }
     }
 
-    fn handle_q(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+    async fn handle_q(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('q');
+            Ok(false)
+        } else if app.view == View::Aggregate {
+            // Switch to qna tab in aggregate view
+            app.switch_aggregate_tab(self.client, "qna").await;
             Ok(false)
         } else {
             match app.view {
@@ -367,6 +371,7 @@ impl<'a> EventHandler<'a> {
                 }
                 View::Notifications => app.load_notifications(self.client).await,
                 View::Profile => app.load_profile(self.client).await,
+                View::Aggregate => app.load_aggregate(self.client).await,
                 _ => {}
             }
         }
@@ -377,8 +382,8 @@ impl<'a> EventHandler<'a> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('a');
         } else if app.view == View::Aggregate {
-            // Already in aggregate view, refresh
-            app.load_aggregate(self.client).await;
+            // Switch to apple tab in aggregate view
+            app.switch_aggregate_tab(self.client, "apple").await;
         } else {
             // Switch to aggregate view and load data
             app.view = View::Aggregate;
@@ -437,6 +442,9 @@ impl<'a> EventHandler<'a> {
     async fn handle_t(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('t');
+        } else if app.view == View::Aggregate {
+            // Switch to tech tab in aggregate view
+            app.switch_aggregate_tab(self.client, "tech").await;
         } else {
             match app.view {
                 View::TopicList => {
@@ -636,7 +644,7 @@ impl<'a> EventHandler<'a> {
             let tab = match ch {
                 't' => Some("tech"),
                 'c' => Some("creative"),
-                'p' => Some("play"),
+                'k' => Some("play"),
                 'a' => Some("apple"),
                 'j' => Some("jobs"),
                 'd' => Some("deals"),

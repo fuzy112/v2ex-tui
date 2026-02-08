@@ -58,7 +58,7 @@ impl AggregateView {
             Span::styled(":tech ", tab_style("tech")),
             Span::styled("c", key_style("creative")),
             Span::styled(":creative ", tab_style("creative")),
-            Span::styled("p", key_style("play")),
+            Span::styled("k", key_style("play")),
             Span::styled(":play ", tab_style("play")),
             Span::styled("a", key_style("apple")),
             Span::styled(":apple ", tab_style("apple")),
