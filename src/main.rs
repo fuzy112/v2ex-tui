@@ -43,7 +43,7 @@ fn print_help() {
     println!("  u              Profile (user)");
     println!("  s              Select node from menu (Tab: manual input)");
     println!("  a              Aggregated topics view (RSS feeds)");
-    println!("  1-9            Quick switch nodes (1:python, etc.)");
+    println!("  1-9            Quick switch nodes (1:python, etc.) / Open links in topic view");
     println!(
         "  t              Open topic / Toggle replies view
    o              Open current topic in browser"

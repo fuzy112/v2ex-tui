@@ -26,6 +26,8 @@ impl<'a> EventHandler<'a> {
             KeyCode::Char('l') | KeyCode::Right => self.handle_forward(app, key).await,
             KeyCode::Enter => self.handle_enter(app).await,
             KeyCode::Char('r') => self.handle_r(app, key),
+            KeyCode::Char('f') => self.handle_f(app, key).await,
+            KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => self.handle_ctrl_g(app, key),
             KeyCode::Char('g') => self.handle_g(app, key).await,
             KeyCode::Char('a') => self.handle_a(app, key).await,
             KeyCode::Char('m') => self.handle_m(app, key).await,
@@ -142,7 +144,7 @@ impl<'a> EventHandler<'a> {
                 View::NodeSelect => app.node_state.next_node(),
                 View::TopicDetail => {
                     if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                        app.topic_state.next_reply();
+                        app.topic_state.next_reply(app.terminal_width);
                     } else {
                         app.topic_state.scroll_down();
                     }
@@ -165,7 +167,7 @@ impl<'a> EventHandler<'a> {
             }
             View::TopicDetail => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.next_reply();
+                    app.topic_state.next_reply(app.terminal_width);
                 } else {
                     app.topic_state.scroll_down();
                 }
@@ -190,7 +192,7 @@ impl<'a> EventHandler<'a> {
                 View::NodeSelect => app.node_state.previous_node(),
                 View::TopicDetail => {
                     if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                        app.topic_state.previous_reply();
+                        app.topic_state.previous_reply(app.terminal_width);
                     } else {
                         app.topic_state.scroll_up();
                     }
@@ -213,7 +215,7 @@ impl<'a> EventHandler<'a> {
             }
             View::TopicDetail => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.previous_reply();
+                    app.topic_state.previous_reply(app.terminal_width);
                 } else {
                     app.topic_state.scroll_up();
                 }
@@ -530,21 +532,26 @@ impl<'a> EventHandler<'a> {
 
     async fn handle_number(&self, app: &mut App, key: KeyEvent, node: &str) -> Result<bool> {
         let digit = match key.code {
-            KeyCode::Char('1') => '1',
-            KeyCode::Char('2') => '2',
-            KeyCode::Char('3') => '3',
-            KeyCode::Char('4') => '4',
-            KeyCode::Char('5') => '5',
-            KeyCode::Char('6') => '6',
-            KeyCode::Char('7') => '7',
-            KeyCode::Char('8') => '8',
-            KeyCode::Char('9') => '9',
+            KeyCode::Char('1') => 1,
+            KeyCode::Char('2') => 2,
+            KeyCode::Char('3') => 3,
+            KeyCode::Char('4') => 4,
+            KeyCode::Char('5') => 5,
+            KeyCode::Char('6') => 6,
+            KeyCode::Char('7') => 7,
+            KeyCode::Char('8') => 8,
+            KeyCode::Char('9') => 9,
             _ => return Ok(false),
         };
 
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
-            app.node_state.insert_char(digit);
+            app.node_state
+                .insert_char(char::from_digit(digit as u32, 10).unwrap_or('0'));
+        } else if app.view == View::TopicDetail {
+            // In topic detail view, open detected links with number keys
+            app.open_detected_link(digit);
         } else {
+            // In other views, use number keys for node switching
             app.node_state.switch_node(node);
             app.load_topics(self.client, false).await;
         }
@@ -660,6 +667,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_char(&self, app: &mut App, ch: char) -> Result<bool> {
+        // Check link selection mode first (highest priority)
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, ch).await;
+        }
+        
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char(ch);
         } else if app.view == View::Aggregate {
@@ -681,6 +693,59 @@ impl<'a> EventHandler<'a> {
                 return Ok(false);
             }
         }
+        Ok(false)
+    }
+
+    async fn handle_f(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+        if app.view == View::TopicDetail {
+            app.topic_state.enter_link_selection_mode(app.terminal_width);
+            app.ui_state.status_message = "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Ctrl+g to cancel".to_string();
+        }
+        Ok(false)
+    }
+    
+    fn handle_ctrl_g(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+        if app.topic_state.link_input_state.is_active {
+            app.topic_state.exit_link_selection_mode();
+            app.ui_state.status_message = "Link selection cancelled".to_string();
+        }
+        Ok(false)
+    }
+    
+    async fn handle_link_mode_char(&self, app: &mut App, ch: char) -> Result<bool> {
+        if !app.topic_state.link_input_state.is_active {
+            return Ok(false);
+        }
+        
+        let (input, timeout_reset) = app.topic_state.handle_link_mode_key(ch);
+        
+        if timeout_reset {
+            app.ui_state.status_message = format!("Link mode: input reset (timeout). Current: '{}'", input);
+        } else {
+            app.ui_state.status_message = format!("Link mode: input '{}'", input);
+        }
+        
+        // Prefix matching (phase 4 will implement full logic)
+        let matches = app.topic_state.find_links_by_prefix(&input);
+        if matches.len() == 1 {
+            // Exact match found
+            let link = matches[0];
+            match crate::browser::Browser::open_url(&link.url) {
+                Ok(result) => {
+                    app.ui_state.status_message = format!("Opening link {}: {}", link.shortcut, result);
+                }
+                Err(e) => {
+                    app.ui_state.error = Some(format!("Failed to open link {}: {}", link.shortcut, e));
+                }
+            }
+            app.topic_state.exit_link_selection_mode();
+        } else if matches.len() > 1 {
+            // Multiple matches - show feedback
+            let shortcuts: Vec<&str> = matches.iter().map(|l| l.shortcut.as_str()).collect();
+            app.ui_state.status_message = format!("Link mode: input '{}', matches: {}", input, shortcuts.join(", "));
+        }
+        // matches.len() == 0: silent ignore (user confirmed)
+        
         Ok(false)
     }
 

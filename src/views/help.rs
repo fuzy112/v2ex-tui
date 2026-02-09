@@ -64,6 +64,7 @@ Topic Detail:
   r         - Reply (if logged in)
   o         - Open in browser
   N / P     - Navigate between topics
+  1-9       - Open detected links (when links are found in content)
 
 Shortcuts:
   ?         - Show this help
