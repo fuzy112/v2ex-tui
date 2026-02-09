@@ -38,6 +38,8 @@ pub struct App {
     pub token_state: TokenState,
     pub ui_state: UiState,
     pub aggregate_state: AggregateState,
+    pub terminal_width: usize,
+    pub terminal_height: usize,
 }
 
 impl App {
@@ -52,6 +54,8 @@ impl App {
             token_state: TokenState::default(),
             ui_state: UiState::new(),
             aggregate_state: AggregateState::new(),
+            terminal_width: 80,  // Default width
+            terminal_height: 24, // Default height
         }
     }
 
@@ -98,6 +102,7 @@ impl App {
         match client.get_topic(topic_id).await {
             Ok(topic) => {
                 self.topic_state.current = Some(topic);
+                self.topic_state.detect_links(self.terminal_width);
                 self.ui_state.status_message = format!("Loaded topic {}", topic_id);
             }
             Err(e) => {
@@ -138,13 +143,11 @@ impl App {
                     } else {
                         self.topic_state.replies_list_state.select(Some(0));
                     }
-                    self.ui_state.status_message =
-                        format!("Loaded {} replies", self.topic_state.replies.len());
+                    self.ui_state.status_message = format!("Loaded {} replies", replies_len);
                 }
-
-                if !is_empty {
-                    self.topic_state.replies_page += 1;
-                }
+                self.topic_state.replies_page += 1;
+                // Update links after loading replies
+                self.topic_state.detect_links(self.terminal_width);
             }
             Err(e) => {
                 self.ui_state.error = Some(format!("Failed to load replies: {}", e));
@@ -380,6 +383,58 @@ impl App {
         }
     }
 
+    pub fn copy_selected_reply_to_clipboard(&mut self) {
+        if let Some(reply) = self
+            .topic_state
+            .replies
+            .get(self.topic_state.selected_reply)
+        {
+            let content = reply
+                .content_rendered
+                .as_ref()
+                .or(reply.content.as_ref())
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+
+            // Strip HTML tags for plain text
+            let plain_text = html2text::from_read(content.as_bytes(), 80);
+
+            match crate::clipboard::copy_to_clipboard(&plain_text) {
+                Ok(()) => {
+                    self.ui_state.status_message =
+                        format!("Copied reply #{} to clipboard", reply.id);
+                }
+                Err(e) => {
+                    self.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+                }
+            }
+        } else {
+            self.ui_state.status_message = "No reply selected".to_string();
+        }
+    }
+
+    pub fn copy_topic_content_to_clipboard(&mut self, topic: &crate::api::Topic) {
+        let content = topic
+            .content_rendered
+            .as_ref()
+            .or(topic.content.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        // Strip HTML tags for plain text
+        let plain_text = html2text::from_read(content.as_bytes(), 80);
+
+        match crate::clipboard::copy_to_clipboard(&plain_text) {
+            Ok(()) => {
+                self.ui_state.status_message =
+                    format!("Copied topic '{}' to clipboard", topic.title);
+            }
+            Err(e) => {
+                self.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+            }
+        }
+    }
+
     pub fn open_selected_topic_in_browser(&mut self) {
         if let Some(topic) = self.topic_state.topics.get(self.topic_state.selected) {
             match Browser::open_topic(topic.id) {
@@ -432,8 +487,42 @@ impl App {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
+    pub fn open_detected_link(&mut self, shortcut: usize) {
+        if let Some(link) = self.topic_state.get_link_by_shortcut(shortcut) {
+            match Browser::open_url(link) {
+                Ok(result) => {
+                    self.ui_state.status_message = format!("Opening link {}: {}", shortcut, result);
+                }
+                Err(e) => {
+                    self.ui_state.error = Some(format!("Failed to open link {}: {}", shortcut, e));
+                }
+            }
+        } else {
+            self.ui_state.status_message = format!("No link found for shortcut {}", shortcut);
+        }
+    }
+
+    fn get_status_with_links(&self) -> String {
+        if self.view == View::TopicDetail && !self.topic_state.link_shortcuts.is_empty() {
+            let links_info = self.topic_state.link_shortcuts.join(", ");
+            if self.ui_state.status_message.is_empty() {
+                format!("Links: {}", links_info)
+            } else {
+                format!("{} | Links: {}", self.ui_state.status_message, links_info)
+            }
+        } else {
+            self.ui_state.status_message.clone()
+        }
+    }
+
     // Rendering
     pub fn render(&mut self, frame: &mut Frame) {
+        // Update terminal dimensions
+        let terminal_size = frame.size();
+        self.terminal_width = terminal_size.width as usize;
+        self.terminal_height = terminal_size.height as usize;
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(1)])
@@ -481,6 +570,9 @@ impl App {
                             split_chunks[1],
                             topic,
                             self.topic_state.scroll,
+                            &self.topic_state.detected_links,
+                            self.topic_state.link_input_state.is_active,
+                            self.topic_state.parsed_content_cache.as_deref(),
                             &self.topic_state.replies,
                             &mut self.topic_state.replies_list_state,
                             &self.ui_state.theme,
@@ -491,6 +583,9 @@ impl App {
                             chunks[0],
                             topic,
                             self.topic_state.scroll,
+                            &self.topic_state.detected_links,
+                            self.topic_state.link_input_state.is_active,
+                            self.topic_state.parsed_content_cache.as_deref(),
                             &self.ui_state.theme,
                         );
                     }
@@ -568,11 +663,7 @@ impl App {
             }
         }
 
-        render_status_bar(
-            frame,
-            chunks[1],
-            &self.ui_state.status_message,
-            &self.ui_state.theme,
-        );
+        let status_message = self.get_status_with_links();
+        render_status_bar(frame, chunks[1], &status_message, &self.ui_state.theme);
     }
 }

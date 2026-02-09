@@ -53,11 +53,9 @@
           };
         };
 
-        # Import shell.nix with rust-overlay enabled
+        # Import shell.nix
         devShell = import ./shell.nix { 
           pkgs = pkgs; 
-          withRustOverlay = true;
-          rustToolchain = rustToolchain;
         };
       in
       {

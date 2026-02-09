@@ -4,7 +4,8 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 mod api;
 mod app;
 mod browser;
-mod event;
+mod clipboard;
+mod keymap;
 mod nodes;
 mod state;
 mod terminal;
@@ -13,7 +14,7 @@ mod views;
 
 use api::V2exClient;
 use app::{App, View};
-use event::EventHandler;
+use keymap::EventHandler;
 use terminal::TerminalManager;
 
 fn print_help() {
@@ -37,13 +38,15 @@ fn print_help() {
     println!("  Enter / t      Open selected topic/notification");
     println!(
         "  g              Refresh
-   r              Reply (in topic detail)"
+   r              Open topic/reply in browser (in topic detail)
+   f              Enter link selection mode (in topic detail)
+   w              Copy topic content or selected reply to clipboard (in topic detail)"
     );
     println!("  m              Notifications (messages)");
     println!("  u              Profile (user)");
     println!("  s              Select node from menu (Tab: manual input)");
     println!("  a              Aggregated topics view (RSS feeds)");
-    println!("  1-9            Quick switch nodes (1:python, etc.)");
+    println!("  1-9            Quick switch nodes (1:python, etc.) / Open links in topic view");
     println!(
         "  t              Open topic / Toggle replies view
    o              Open current topic in browser"

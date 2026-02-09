@@ -1,11 +1,4 @@
-{ pkgs ? import <nixpkgs> {}, withRustOverlay ? false, rustToolchain ? null }:
-
-let
-  effectivePkgs = if withRustOverlay && rustToolchain != null then
-    pkgs // { rustToolchain = rustToolchain; }
-  else
-    pkgs;
-in
+{ pkgs ? import <nixpkgs> {} }:
 
 pkgs.mkShell {
    buildInputs = with pkgs; [

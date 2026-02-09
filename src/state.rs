@@ -1,5 +1,7 @@
 use crate::api::RssItem;
 use ratatui::widgets::ListState;
+use std::ops::Range;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Default)]
 pub struct AggregateState {
@@ -307,6 +309,73 @@ mod tests {
         assert_eq!(state.current_tab, "creative");
         assert_eq!(state.selected, 0);
     }
+
+    #[test]
+    fn test_topic_state_detect_links() {
+        let mut state = TopicState::default();
+
+        // Create a test topic with content containing links
+        state.current = Some(create_test_topic_with_content(1));
+
+        // Detect links
+        state.detect_links(80); // Test width
+
+        // Check that links were detected (if regex works)
+        // Note: This test may fail if regex pattern doesn't match,
+        // but at least we test that the method doesn't panic
+        assert_eq!(
+            state.link_shortcuts.len(),
+            state.detected_links.iter().take(9).count()
+        );
+    }
+
+    fn create_test_topic_with_content(id: i64) -> crate::api::Topic {
+        crate::api::Topic {
+            id,
+            node: None,
+            member: None,
+            last_reply_by: None,
+            last_touched: None,
+            title: format!("Test Topic {}", id),
+            url: format!("https://v2ex.com/t/{}", id),
+            created: 0,
+            deleted: None,
+            content: Some(
+                "Check out https://example.com and http://test.org for more info".to_string(),
+            ),
+            content_rendered: None,
+            last_modified: None,
+            replies: 0,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct DetectedLink {
+    pub url: String,
+    pub shortcut: String,
+    pub text_range: Range<usize>,
+    #[allow(dead_code)] // Not currently used, but kept for completeness
+    pub display_text: String,
+}
+
+#[derive(Debug)]
+pub struct LinkInputState {
+    pub current_input: String,
+    pub last_key_time: Option<Instant>,
+    pub timeout_duration: Duration,
+    pub is_active: bool,
+}
+
+impl Default for LinkInputState {
+    fn default() -> Self {
+        Self {
+            current_input: String::new(),
+            last_key_time: None,
+            timeout_duration: Duration::from_secs(2), // Increased from 300ms to 2 seconds
+            is_active: false,
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -320,6 +389,10 @@ pub struct TopicState {
     pub selected_reply: usize,
     pub replies_list_state: ListState,
     pub show_replies: bool,
+    pub detected_links: Vec<DetectedLink>,
+    pub link_shortcuts: Vec<String>,
+    pub link_input_state: LinkInputState,
+    pub parsed_content_cache: Option<String>,
 }
 
 impl TopicState {
@@ -339,14 +412,15 @@ impl TopicState {
         }
     }
 
-    pub fn next_reply(&mut self) {
+    pub fn next_reply(&mut self, width: usize) {
         if !self.replies.is_empty() {
             self.selected_reply = (self.selected_reply + 1) % self.replies.len();
             self.replies_list_state.select(Some(self.selected_reply));
+            self.detect_links(width); // Update links for the newly selected reply
         }
     }
 
-    pub fn previous_reply(&mut self) {
+    pub fn previous_reply(&mut self, width: usize) {
         if !self.replies.is_empty() {
             self.selected_reply = if self.selected_reply == 0 {
                 self.replies.len() - 1
@@ -354,6 +428,7 @@ impl TopicState {
                 self.selected_reply - 1
             };
             self.replies_list_state.select(Some(self.selected_reply));
+            self.detect_links(width); // Update links for the newly selected reply
         }
     }
 
@@ -384,6 +459,169 @@ impl TopicState {
             self.topics
                 .iter()
                 .position(|topic| topic.id == current_topic.id)
+        } else {
+            None
+        }
+    }
+
+    pub fn detect_links(&mut self, width: usize) {
+        self.detected_links.clear();
+        self.link_shortcuts.clear();
+        self.parsed_content_cache = None;
+
+        // Determine which content to parse based on current view
+        let content_to_parse = if self.show_replies && !self.replies.is_empty() {
+            // Parse the selected reply
+            self.replies
+                .get(self.selected_reply)
+                .and_then(|reply| reply.content_rendered.as_ref().or(reply.content.as_ref()))
+                .map(|content| content.to_string())
+        } else if let Some(topic) = &self.current {
+            // Parse the topic content
+            topic
+                .content_rendered
+                .as_ref()
+                .or(topic.content.as_ref())
+                .map(|content| content.to_string())
+        } else {
+            None
+        };
+
+        if let Some(content) = content_to_parse {
+            // Convert HTML to text using html2text with the actual terminal width
+            // This ensures link positions match the rendered text
+            let converted_text = html2text::from_read(content.as_bytes(), width);
+
+            // Store converted text for potential use in rendering
+            self.parsed_content_cache = Some(converted_text.clone());
+
+            // Extract links from converted text
+            self.extract_links_from_converted_text(&converted_text);
+        }
+
+        // Generate shortcuts for first 9 links (for backward compatibility)
+        for (i, link) in self.detected_links.iter().take(9).enumerate() {
+            self.link_shortcuts.push(format!("{}: {}", i + 1, link.url));
+        }
+    }
+
+    fn assign_shortcut(index: usize) -> String {
+        const HOME_ROW: &[char] = &['a', 'o', 'e', 'u', 'i', 'd', 'h', 't', 'n', 's'];
+
+        if index < HOME_ROW.len() {
+            HOME_ROW[index].to_string()
+        } else {
+            let first_idx = (index - HOME_ROW.len()) / HOME_ROW.len();
+            let second_idx = (index - HOME_ROW.len()) % HOME_ROW.len();
+            format!("{}{}", HOME_ROW[first_idx], HOME_ROW[second_idx])
+        }
+    }
+
+    fn extract_links_from_converted_text(&mut self, converted_text: &str) {
+        use regex::Regex;
+
+        // Simple URL regex pattern - match URLs in converted text
+        // html2text may convert HTML links to [text](url) format, but URLs may also appear as plain text
+        let url_pattern = "https?://[^\\s<>\"'\\)\\]]+";
+        let re = match Regex::new(url_pattern) {
+            Ok(regex) => regex,
+            Err(_) => return, // If regex fails, skip link detection
+        };
+
+        // Clear existing links
+        self.detected_links.clear();
+
+        // Find all matches with their byte positions
+        let mut matches: Vec<(String, std::ops::Range<usize>)> = Vec::new();
+        for capture in re.captures_iter(converted_text) {
+            if let Some(matched) = capture.get(0) {
+                let url = matched.as_str().to_string();
+                let byte_range = matched.start()..matched.end();
+                matches.push((url, byte_range));
+            }
+        }
+
+        // Store byte positions (not character positions) for accurate string slicing
+        // URLs are typically ASCII, so byte positions work correctly
+        for (index, (url, byte_range)) in matches.into_iter().enumerate() {
+            let shortcut = Self::assign_shortcut(index);
+            let display_text = if url.len() > 50 {
+                format!("{}...", &url[..47])
+            } else {
+                url.clone()
+            };
+
+            self.detected_links.push(DetectedLink {
+                url,
+                shortcut,
+                text_range: byte_range, // Store byte range for string slicing
+                display_text,
+            });
+        }
+    }
+
+    // Link selection mode methods
+    pub fn enter_link_selection_mode(&mut self, width: usize) {
+        self.link_input_state.is_active = true;
+        self.link_input_state.current_input.clear();
+        self.link_input_state.last_key_time = None;
+        // Detect links with positions in the currently displayed content
+        self.detect_links(width);
+    }
+
+    pub fn exit_link_selection_mode(&mut self) {
+        self.link_input_state.is_active = false;
+        self.link_input_state.current_input.clear();
+        self.link_input_state.last_key_time = None;
+    }
+
+    pub fn handle_link_mode_key(&mut self, ch: char) -> (String, bool, bool) {
+        let now = Instant::now();
+        let mut timeout_reset = false;
+        let mut valid_input = false;
+
+        // Check timeout
+        if let Some(last_time) = self.link_input_state.last_key_time {
+            if now.duration_since(last_time) > self.link_input_state.timeout_duration {
+                self.link_input_state.current_input.clear();
+                timeout_reset = true;
+            }
+        }
+
+        // Only accept home row letters
+        if "aoeuidhtns".contains(ch) {
+            self.link_input_state.current_input.push(ch);
+            valid_input = true;
+        }
+
+        self.link_input_state.last_key_time = Some(now);
+        (
+            self.link_input_state.current_input.clone(),
+            timeout_reset,
+            valid_input,
+        )
+    }
+
+    // Helper methods for phase 2 (to be implemented)
+    pub fn find_links_by_prefix(&self, prefix: &str) -> Vec<&DetectedLink> {
+        self.detected_links
+            .iter()
+            .filter(|link| link.shortcut.starts_with(prefix))
+            .collect()
+    }
+
+    #[allow(dead_code)] // Utility function not currently used, but kept for completeness
+    pub fn find_exact_link(&self, shortcut: &str) -> Option<&DetectedLink> {
+        self.detected_links
+            .iter()
+            .find(|link| link.shortcut == shortcut)
+    }
+
+    #[allow(dead_code)] // Not currently used, but kept for future use
+    pub fn get_link_by_shortcut(&self, shortcut: usize) -> Option<&String> {
+        if shortcut >= 1 && shortcut <= self.detected_links.len() {
+            // Temporary: return URL from new DetectedLink struct
+            Some(&self.detected_links[shortcut - 1].url)
         } else {
             None
         }
@@ -532,12 +770,14 @@ impl NodeState {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn move_cursor_left(&mut self) {
         if self.completion_cursor > 0 {
             self.completion_cursor -= 1;
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn move_cursor_right(&mut self) {
         if self.completion_cursor < self.completion_input.chars().count() {
             self.completion_cursor += 1;

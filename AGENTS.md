@@ -10,13 +10,6 @@ nix-shell        # Enter development environment
 nix develop      # Alternative using flake
 ```
 
-### Build & Run
-```bash
-cargo build           # Debug build
-cargo build --release # Release build
-cargo run             # Build and run
-```
-
 ### Code Quality
 ```bash
 cargo fmt             # Format with rustfmt
@@ -24,21 +17,10 @@ cargo clippy          # Lint (treat warnings as errors: cargo clippy -- -D warni
 cargo check           # Compile check
 ```
 
-### Testing
-```bash
-cargo test            # Run all tests (limited coverage)
-cargo test -- --nocapture --test-threads=1  # Show test output
-
-# Run single test
-cargo test test_function_name
-cargo test module_name::test_function
-cargo test module_name  # All tests in module
-```
-
-### Documentation
-```bash
-cargo doc --open      # Generate and open docs
-```
+**IMPORTANT**: ALWAYS run `cargo fmt` and `cargo check` before committing code. This ensures:
+1. Code is properly formatted according to Rust conventions
+2. No compilation errors are introduced
+3. Code style consistency is maintained across the project
 
 ## Code Style
 
@@ -111,9 +93,23 @@ pub fn with_terminal(...)
 ## Project Structure
 ```
 src/
-├── main.rs      # App state, event loop, navigation (~75 fields)
+├── main.rs      # App state, event loop, navigation
 ├── api.rs       # V2EX API client, data structures
+├── app.rs       # App struct and data loading methods
+├── state.rs     # State management (TopicState, NodeState, etc.)
+├── keymap.rs    # Modular key mappings for different views
+├── clipboard.rs # Clipboard utilities (OSC 52)
+├── browser.rs   # Browser integration
+├── terminal.rs  # Terminal management
 ├── ui.rs        # UI rendering, theme management
+├── views/       # View components
+│   ├── topic_list.rs
+│   ├── topic_detail.rs
+│   ├── notifications.rs
+│   ├── profile.rs
+│   ├── help.rs
+│   ├── node_select.rs
+│   └── aggregate.rs
 └── nodes.rs     # 1333 nodes for autocompletion
 ```
 
@@ -144,15 +140,24 @@ s         - Node selection mode
 t         - Toggle topic/replies view
 o         - Open in browser
 m/u       - Notifications/Profile
-+         - Load more topics
+a         - Aggregated topics (RSS feeds)
++         - Load more topics/replies
 g         - Refresh current view
+f         - Enter link selection mode (topic detail)
+w         - Copy selected reply to clipboard (topic detail)
 ?         - Help, q/Esc - Exit/back
 ```
 
 ## Common Tasks
-- **Add Feature**: Analyze existing patterns, update `App` state, add UI functions in `ui.rs`, add key handling in `main.rs`, update `ui.rs::render_help()`
+- **Add Feature**: Analyze existing patterns, update `App` state, add UI functions in `ui.rs`, add key handling in `keymap.rs`, update `views/help.rs`
 - **Fix Bug**: Reproduce issue, add test if possible, fix root cause, verify no regression
 - **Refactor**: Ensure `cargo check` passes first, incremental changes, run `cargo fmt`, `cargo clippy`, `cargo check` after
+
+**Commit Protocol**: Before creating any commit:
+1. Run `cargo fmt` to format code
+2. Run `cargo check` to ensure no compilation errors
+3. Run `cargo clippy` to check for warnings (optional but recommended)
+4. Only commit if all checks pass
 
 ## V2EX API 2.0 Beta
 ```
