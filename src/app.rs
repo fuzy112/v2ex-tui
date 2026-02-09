@@ -519,14 +519,14 @@ impl App {
     // Rendering
     pub fn render(&mut self, frame: &mut Frame) {
         // Update terminal dimensions
-        let terminal_size = frame.size();
+        let terminal_size = frame.area();
         self.terminal_width = terminal_size.width as usize;
         self.terminal_height = terminal_size.height as usize;
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(1)])
-            .split(frame.size());
+            .split(frame.area());
 
         match self.view {
             View::TopicList => {
