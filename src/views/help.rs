@@ -61,8 +61,10 @@ Node Selection:
 
 Topic Detail:
   t         - Toggle replies view
-  r         - Reply (if logged in)
+  r         - Open topic/reply in browser
   o         - Open in browser
+  f         - Enter link selection mode
+  w         - Copy selected reply to clipboard
   N / P     - Navigate between topics
   1-9       - Open detected links (when links are found in content)
 

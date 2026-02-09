@@ -38,7 +38,9 @@ fn print_help() {
     println!("  Enter / t      Open selected topic/notification");
     println!(
         "  g              Refresh
-   r              Reply (in topic detail)"
+   r              Open topic/reply in browser (in topic detail)
+   f              Enter link selection mode (in topic detail)
+   w              Copy selected reply to clipboard (in topic detail)"
     );
     println!("  m              Notifications (messages)");
     println!("  u              Profile (user)");
