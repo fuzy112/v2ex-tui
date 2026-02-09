@@ -575,9 +575,10 @@ impl TopicState {
         self.link_input_state.last_key_time = None;
     }
 
-    pub fn handle_link_mode_key(&mut self, ch: char) -> (String, bool) {
+    pub fn handle_link_mode_key(&mut self, ch: char) -> (String, bool, bool) {
         let now = Instant::now();
         let mut timeout_reset = false;
+        let mut valid_input = false;
 
         // Check timeout
         if let Some(last_time) = self.link_input_state.last_key_time {
@@ -590,10 +591,15 @@ impl TopicState {
         // Only accept home row letters
         if "aoeuidhtns".contains(ch) {
             self.link_input_state.current_input.push(ch);
+            valid_input = true;
         }
 
         self.link_input_state.last_key_time = Some(now);
-        (self.link_input_state.current_input.clone(), timeout_reset)
+        (
+            self.link_input_state.current_input.clone(),
+            timeout_reset,
+            valid_input,
+        )
     }
 
     // Helper methods for phase 2 (to be implemented)

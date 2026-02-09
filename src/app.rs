@@ -54,7 +54,7 @@ impl App {
             token_state: TokenState::default(),
             ui_state: UiState::new(),
             aggregate_state: AggregateState::new(),
-            terminal_width: 80, // Default width
+            terminal_width: 80,  // Default width
             terminal_height: 24, // Default height
         }
     }
@@ -469,7 +469,7 @@ impl App {
         let terminal_size = frame.size();
         self.terminal_width = terminal_size.width as usize;
         self.terminal_height = terminal_size.height as usize;
-        
+
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(0), Constraint::Length(1)])

@@ -15,6 +15,7 @@ impl TopicDetailView {
         Self
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn render(
         &self,
         frame: &mut Frame,
@@ -232,15 +233,28 @@ impl TopicDetailView {
             parsed_content,
             theme,
         );
-        self.render_replies(frame, replies_area, replies, list_state, theme);
+        self.render_replies(
+            frame,
+            replies_area,
+            replies,
+            list_state,
+            detected_links,
+            is_link_mode_active,
+            parsed_content,
+            theme,
+        );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn render_replies(
         &self,
         frame: &mut Frame,
         area: Rect,
         replies: &[crate::api::Reply],
         list_state: &mut ListState,
+        _detected_links: &[DetectedLink],
+        _is_link_mode_active: bool,
+        _parsed_content: Option<&str>,
         theme: &Theme,
     ) {
         let items: Vec<ListItem> = replies
@@ -254,6 +268,9 @@ impl TopicDetailView {
                     .as_deref()
                     .or(reply.content.as_deref())
                     .unwrap_or("No content");
+
+                // TODO: Add link highlighting for replies (requires ownership fix in build_highlighted_text)
+                // For now, use normal rendering even in link mode
                 let content = html2text::from_read(
                     content_text.as_bytes(),
                     area.width.saturating_sub(4) as usize,

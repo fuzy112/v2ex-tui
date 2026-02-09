@@ -18,7 +18,13 @@ impl<'a> EventHandler<'a> {
             KeyCode::Char('q') => self.handle_q(app, key).await,
             KeyCode::Esc => self.handle_esc(app),
             KeyCode::Char('?') => self.handle_help(app, key),
-            KeyCode::Char('h') | KeyCode::Left => self.handle_back(app, key),
+            KeyCode::Char('h') | KeyCode::Left => {
+                if app.topic_state.link_input_state.is_active {
+                    self.handle_link_mode_char(app, 'h').await
+                } else {
+                    self.handle_back(app, key)
+                }
+            }
             KeyCode::Char('n') => self.handle_n(app, key).await,
             KeyCode::Down => self.handle_down(app),
             KeyCode::Char('p') => self.handle_p(app, key).await,
@@ -27,12 +33,20 @@ impl<'a> EventHandler<'a> {
             KeyCode::Enter => self.handle_enter(app).await,
             KeyCode::Char('r') => self.handle_r(app, key),
             KeyCode::Char('f') => self.handle_f(app, key).await,
-            KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => self.handle_ctrl_g(app, key),
+            KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.handle_ctrl_g(app, key)
+            }
             KeyCode::Char('g') => self.handle_g(app, key).await,
             KeyCode::Char('a') => self.handle_a(app, key).await,
             KeyCode::Char('m') => self.handle_m(app, key).await,
             KeyCode::Char('u') => self.handle_u(app, key).await,
-            KeyCode::Char('s') => self.handle_s(app),
+            KeyCode::Char('s') => {
+                if app.topic_state.link_input_state.is_active {
+                    self.handle_link_mode_char(app, 's').await
+                } else {
+                    self.handle_s(app)
+                }
+            }
             KeyCode::Tab => self.handle_tab(app),
             KeyCode::Char('t') => self.handle_t(app, key).await,
             KeyCode::Char('o') => self.handle_o(app, key),
@@ -131,6 +145,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_n(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, 'n').await;
+        }
+
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             if app.view == View::NodeSelect {
                 app.node_state.next_node();
@@ -179,6 +198,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_p(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, 'p').await;
+        }
+
         if key.modifiers.contains(KeyModifiers::CONTROL) {
             if app.view == View::NodeSelect {
                 app.node_state.previous_node();
@@ -227,6 +251,14 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_forward(&self, app: &mut App, key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            if key.code == KeyCode::Char('l') {
+                return self.handle_link_mode_char(app, 'l').await;
+            }
+            return Ok(false);
+        }
+
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             if key.code == KeyCode::Char('l') {
                 app.node_state.insert_char('l');
@@ -400,6 +432,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_a(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, 'a').await;
+        }
+        
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('a');
         } else if app.view == View::Aggregate {
@@ -426,6 +463,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_u(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, 'u').await;
+        }
+
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('u');
         } else {
@@ -437,6 +479,13 @@ impl<'a> EventHandler<'a> {
     }
 
     fn handle_s(&self, app: &mut App) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            // Note: handle_s is not async, so we can't call handle_link_mode_char directly
+            // We'll handle this in handle_key by checking before calling handle_s
+            return Ok(false);
+        }
+
         match app.view {
             View::NodeSelect => {
                 if app.node_state.is_completion_mode {
@@ -465,6 +514,11 @@ impl<'a> EventHandler<'a> {
     }
 
     async fn handle_t(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
+        // Check link selection mode first
+        if app.topic_state.link_input_state.is_active {
+            return self.handle_link_mode_char(app, 't').await;
+        }
+
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char('t');
         } else if app.view == View::Aggregate {
@@ -671,7 +725,7 @@ impl<'a> EventHandler<'a> {
         if app.topic_state.link_input_state.is_active {
             return self.handle_link_mode_char(app, ch).await;
         }
-        
+
         if app.view == View::NodeSelect && app.node_state.is_completion_mode {
             app.node_state.insert_char(ch);
         } else if app.view == View::Aggregate {
@@ -698,12 +752,14 @@ impl<'a> EventHandler<'a> {
 
     async fn handle_f(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
         if app.view == View::TopicDetail {
-            app.topic_state.enter_link_selection_mode(app.terminal_width);
-            app.ui_state.status_message = "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Ctrl+g to cancel".to_string();
+            app.topic_state
+                .enter_link_selection_mode(app.terminal_width);
+            app.ui_state.status_message =
+                "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Ctrl+g to cancel".to_string();
         }
         Ok(false)
     }
-    
+
     fn handle_ctrl_g(&self, app: &mut App, _key: KeyEvent) -> Result<bool> {
         if app.topic_state.link_input_state.is_active {
             app.topic_state.exit_link_selection_mode();
@@ -711,41 +767,63 @@ impl<'a> EventHandler<'a> {
         }
         Ok(false)
     }
-    
+
     async fn handle_link_mode_char(&self, app: &mut App, ch: char) -> Result<bool> {
         if !app.topic_state.link_input_state.is_active {
             return Ok(false);
         }
-        
-        let (input, timeout_reset) = app.topic_state.handle_link_mode_key(ch);
-        
+
+        let (input, timeout_reset, valid_input) = app.topic_state.handle_link_mode_key(ch);
+
+        // Check if input is invalid (not a home row letter)
+        if !valid_input {
+            app.ui_state.error = Some(format!(
+                "Invalid key '{}' - only home row letters (a/o/e/u/i/d/h/t/n/s) are allowed",
+                ch
+            ));
+            app.topic_state.exit_link_selection_mode();
+            return Ok(false);
+        }
+
         if timeout_reset {
-            app.ui_state.status_message = format!("Link mode: input reset (timeout). Current: '{}'", input);
+            app.ui_state.status_message =
+                format!("Link mode: input reset (timeout). Current: '{}'", input);
         } else {
             app.ui_state.status_message = format!("Link mode: input '{}'", input);
         }
-        
-        // Prefix matching (phase 4 will implement full logic)
+
+        // Prefix matching with exact match detection
         let matches = app.topic_state.find_links_by_prefix(&input);
-        if matches.len() == 1 {
-            // Exact match found
-            let link = matches[0];
+
+        // Check for exact match (input length equals shortcut length)
+        let exact_match = matches
+            .iter()
+            .find(|link| link.shortcut.len() == input.len());
+
+        if let Some(link) = exact_match {
+            // Exact match found - open the link
             match crate::browser::Browser::open_url(&link.url) {
                 Ok(result) => {
-                    app.ui_state.status_message = format!("Opening link {}: {}", link.shortcut, result);
+                    app.ui_state.status_message =
+                        format!("Opening link {}: {}", link.shortcut, result);
                 }
                 Err(e) => {
-                    app.ui_state.error = Some(format!("Failed to open link {}: {}", link.shortcut, e));
+                    app.ui_state.error =
+                        Some(format!("Failed to open link {}: {}", link.shortcut, e));
                 }
             }
             app.topic_state.exit_link_selection_mode();
-        } else if matches.len() > 1 {
-            // Multiple matches - show feedback
+        } else if !matches.is_empty() {
+            // Multiple prefix matches - show feedback
             let shortcuts: Vec<&str> = matches.iter().map(|l| l.shortcut.as_str()).collect();
-            app.ui_state.status_message = format!("Link mode: input '{}', matches: {}", input, shortcuts.join(", "));
+            app.ui_state.status_message = format!(
+                "Link mode: input '{}', matches: {}",
+                input,
+                shortcuts.join(", ")
+            );
         }
         // matches.len() == 0: silent ignore (user confirmed)
-        
+
         Ok(false)
     }
 
