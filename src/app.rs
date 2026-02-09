@@ -30,7 +30,6 @@ pub enum View {
 #[derive(Debug)]
 pub struct App {
     pub view: View,
-    pub previous_view: Option<View>,
     pub topic_state: TopicState,
     pub notification_state: NotificationState,
     pub profile: Option<Member>,
@@ -50,7 +49,6 @@ impl App {
         let initial_view = View::Aggregate;
         Self {
             view: initial_view,
-            previous_view: None,
             topic_state: TopicState::default(),
             notification_state: NotificationState::default(),
             profile: None,
@@ -232,7 +230,14 @@ impl App {
     fn find_current_topic_index_in_previous_view(&self) -> Option<(usize, View)> {
         let current_topic_id = self.topic_state.current.as_ref()?.id;
 
-        match self.previous_view {
+        // Check history stack to determine the source view
+        let source_view = if self.history_position > 0 {
+            self.view_history.get(self.history_position - 1).copied()
+        } else {
+            None
+        };
+
+        match source_view {
             Some(View::Aggregate) => {
                 // Find in aggregate items
                 self.aggregate_state
