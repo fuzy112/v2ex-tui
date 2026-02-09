@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::{api::Topic, state::DetectedLink, ui::Theme};
+use crate::{api::Topic, state::DetectedLink, ui::Theme, util::format_relative_time};
 
 pub struct TopicDetailView;
 
@@ -29,12 +29,14 @@ impl TopicDetailView {
     ) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(4), Constraint::Min(5)])
+            .constraints([Constraint::Length(5), Constraint::Min(5)])
             .split(area);
 
         // Header
         let author_name = topic.author_name();
         let node_name = topic.node_title();
+
+        let time_str = format_relative_time(topic.created);
 
         let header_lines = vec![
             Line::from(vec![
@@ -57,7 +59,9 @@ impl TopicDetailView {
                 ),
             ]),
             Line::from(vec![
-                Span::styled("URL: ", Style::default().fg(theme.primary)),
+                Span::styled("Posted: ", Style::default().fg(theme.primary)),
+                Span::styled(&time_str, Style::default().fg(theme.accent)),
+                Span::styled(" | URL: ", Style::default().fg(theme.muted)),
                 Span::styled(&topic.url, Style::default().fg(theme.muted)),
             ]),
             Line::from(""),
@@ -300,6 +304,7 @@ impl TopicDetailView {
                     .as_ref()
                     .map(|m| m.username.as_str())
                     .unwrap_or("Unknown");
+                let reply_time = format_relative_time(reply.created);
 
                 let header_line = Line::from(vec![
                     Span::styled(
@@ -309,6 +314,10 @@ impl TopicDetailView {
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(author, Style::default().fg(theme.accent)),
+                    Span::styled(
+                        format!(" • {}", reply_time),
+                        Style::default().fg(theme.muted),
+                    ),
                 ]);
 
                 let mut all_lines = vec![header_line];

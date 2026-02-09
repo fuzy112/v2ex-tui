@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::{api::Topic, ui::Theme};
+use crate::{api::Topic, ui::Theme, util::format_relative_time};
 
 pub struct TopicListView;
 
@@ -93,6 +93,7 @@ impl TopicListView {
 
                 let title = &topic.title;
                 let replies = topic.replies;
+                let time_str = format_relative_time(topic.created);
 
                 let line = Line::from(vec![
                     Span::styled(
@@ -104,6 +105,7 @@ impl TopicListView {
                         format!(" ({} replies)", replies),
                         Style::default().fg(theme.accent),
                     ),
+                    Span::styled(format!(" • {}", time_str), Style::default().fg(theme.muted)),
                 ]);
 
                 ListItem::new(line)

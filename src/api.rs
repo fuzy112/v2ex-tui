@@ -360,6 +360,8 @@ pub struct RssItem {
     pub date: String,
     #[allow(dead_code)] // Not currently used, but kept for future display
     pub author: Option<String>,
+    /// Unix timestamp for relative time display
+    pub timestamp: Option<i64>,
 }
 
 impl RssItem {
@@ -439,16 +441,18 @@ impl V2exClient {
                     .map(|link| link.href().to_string())
                     .unwrap_or_else(|| "".to_string());
 
-                // Format date
-                let date = entry
+                // Format date and extract timestamp
+                let (date, timestamp) = entry
                     .published()
                     .or_else(|| Some(entry.updated()))
                     .map(|d| {
                         // Convert to chrono DateTime and format as YYYY-MM-DD HH:MM
                         let dt: chrono::DateTime<chrono::Utc> = (*d).into();
-                        dt.format("%Y-%m-%d %H:%M").to_string()
+                        let formatted = dt.format("%Y-%m-%d %H:%M").to_string();
+                        let ts = dt.timestamp();
+                        (formatted, Some(ts))
                     })
-                    .unwrap_or_else(|| "Unknown date".to_string());
+                    .unwrap_or_else(|| ("Unknown date".to_string(), None));
 
                 let author = entry
                     .authors()
@@ -460,6 +464,7 @@ impl V2exClient {
                     link,
                     date,
                     author,
+                    timestamp,
                 }
             })
             .collect();

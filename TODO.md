@@ -26,6 +26,7 @@
 - [ ] Make count of loaded topics configurable
 - [ ] Make the browser used to open links configurable
 - [ ] Make color/theme configurable
+- [ ] Make timestamp format configurable (absolute vs relative) - Currently shows relative time (e.g., "2 hours ago"), add option for absolute time (e.g., "2026-02-09 14:30")
 
 ## 📝 **Future Enhancements**
 

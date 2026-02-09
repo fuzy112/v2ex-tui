@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::api::RssItem;
 use crate::ui::Theme;
+use crate::util::format_relative_time;
 
 pub struct AggregateView;
 
@@ -92,7 +93,10 @@ impl AggregateView {
                 };
 
                 let title = &item.title;
-                let date = &item.date;
+                let time_str = item
+                    .timestamp
+                    .map(format_relative_time)
+                    .unwrap_or_else(|| item.date.clone());
 
                 let line = Line::from(vec![
                     Span::styled(
@@ -100,7 +104,10 @@ impl AggregateView {
                         Style::default().fg(theme.secondary),
                     ),
                     Span::styled(title.to_string(), style),
-                    Span::styled(format!(" ({})", date), Style::default().fg(theme.accent)),
+                    Span::styled(
+                        format!(" • {}", time_str),
+                        Style::default().fg(theme.accent),
+                    ),
                 ]);
 
                 ListItem::new(line)

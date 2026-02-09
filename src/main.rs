@@ -10,6 +10,7 @@ mod nodes;
 mod state;
 mod terminal;
 mod ui;
+mod util;
 mod views;
 
 use api::V2exClient;
