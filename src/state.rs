@@ -617,6 +617,7 @@ impl TopicState {
             .find(|link| link.shortcut == shortcut)
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn get_link_by_shortcut(&self, shortcut: usize) -> Option<&String> {
         if shortcut >= 1 && shortcut <= self.detected_links.len() {
             // Temporary: return URL from new DetectedLink struct
@@ -769,12 +770,14 @@ impl NodeState {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn move_cursor_left(&mut self) {
         if self.completion_cursor > 0 {
             self.completion_cursor -= 1;
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn move_cursor_right(&mut self) {
         if self.completion_cursor < self.completion_input.chars().count() {
             self.completion_cursor += 1;

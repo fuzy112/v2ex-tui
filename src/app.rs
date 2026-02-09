@@ -465,6 +465,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, but kept for future use
     pub fn open_detected_link(&mut self, shortcut: usize) {
         if let Some(link) = self.topic_state.get_link_by_shortcut(shortcut) {
             match Browser::open_url(link) {
