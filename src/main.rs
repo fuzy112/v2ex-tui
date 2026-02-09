@@ -40,7 +40,7 @@ fn print_help() {
         "  g              Refresh
    r              Open topic/reply in browser (in topic detail)
    f              Enter link selection mode (in topic detail)
-   w              Copy selected reply to clipboard (in topic detail)"
+   w              Copy topic content or selected reply to clipboard (in topic detail)"
     );
     println!("  m              Notifications (messages)");
     println!("  u              Profile (user)");

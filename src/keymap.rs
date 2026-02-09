@@ -31,10 +31,10 @@ impl LinkSelectionKeyMap {
 
         // Check if input is invalid (not a home row letter)
         if !valid_input {
-            app.ui_state.error = Some(format!(
+            app.ui_state.status_message = format!(
                 "Invalid key '{}' - only home row letters (a/o/e/u/i/d/h/t/n/s) are allowed",
                 ch
-            ));
+            );
             app.topic_state.exit_link_selection_mode();
             return Ok(false);
         }
@@ -383,6 +383,8 @@ impl KeyMap for TopicDetailKeyMap {
             KeyCode::Char('w') => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                     app.copy_selected_reply_to_clipboard();
+                } else if let Some(topic) = app.topic_state.current.clone() {
+                    app.copy_topic_content_to_clipboard(&topic);
                 }
                 Ok(false)
             }
@@ -390,7 +392,8 @@ impl KeyMap for TopicDetailKeyMap {
                 app.topic_state
                     .enter_link_selection_mode(app.terminal_width);
                 app.ui_state.status_message =
-                    "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Ctrl+g to cancel".to_string();
+                    "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Esc/Ctrl+g to cancel"
+                        .to_string();
                 Ok(false)
             }
             KeyCode::Char('g') => {

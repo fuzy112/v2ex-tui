@@ -413,6 +413,28 @@ impl App {
         }
     }
 
+    pub fn copy_topic_content_to_clipboard(&mut self, topic: &crate::api::Topic) {
+        let content = topic
+            .content_rendered
+            .as_ref()
+            .or(topic.content.as_ref())
+            .map(|s| s.to_string())
+            .unwrap_or_default();
+
+        // Strip HTML tags for plain text
+        let plain_text = html2text::from_read(content.as_bytes(), 80);
+
+        match crate::clipboard::copy_to_clipboard(&plain_text) {
+            Ok(()) => {
+                self.ui_state.status_message =
+                    format!("Copied topic '{}' to clipboard", topic.title);
+            }
+            Err(e) => {
+                self.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+            }
+        }
+    }
+
     pub fn open_selected_topic_in_browser(&mut self) {
         if let Some(topic) = self.topic_state.topics.get(self.topic_state.selected) {
             match Browser::open_topic(topic.id) {

@@ -372,7 +372,7 @@ impl Default for LinkInputState {
         Self {
             current_input: String::new(),
             last_key_time: None,
-            timeout_duration: Duration::from_millis(300),
+            timeout_duration: Duration::from_secs(2), // Increased from 300ms to 2 seconds
             is_active: false,
         }
     }
