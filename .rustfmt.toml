@@ -1,0 +1,4 @@
+# rustfmt configuration
+# Tell rustfmt to ignore the generated nodes.rs file
+
+ignore = ["src/nodes.rs"]
