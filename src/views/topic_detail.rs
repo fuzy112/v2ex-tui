@@ -321,7 +321,10 @@ impl TopicDetailView {
 
         // Build title with reply count info
         let title = if has_more {
-            format!(" Replies ({}/{} - press + for more) ", loaded_replies, total_replies)
+            format!(
+                " Replies ({}/{} - press + for more) ",
+                loaded_replies, total_replies
+            )
         } else {
             format!(" Replies ({}/{}) ", loaded_replies, total_replies)
         };

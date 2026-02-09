@@ -22,11 +22,7 @@ impl LinkSelectionKeyMap {
         Self
     }
 
-    async fn handle_link_mode_char(
-        &self,
-        app: &mut App,
-        ch: char,
-    ) -> Result<bool> {
+    async fn handle_link_mode_char(&self, app: &mut App, ch: char) -> Result<bool> {
         if !app.topic_state.link_input_state.is_active {
             return Ok(false);
         }
@@ -87,12 +83,7 @@ impl LinkSelectionKeyMap {
 }
 
 impl KeyMap for LinkSelectionKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        _client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, _client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => {
                 app.topic_state.exit_link_selection_mode();
@@ -146,12 +137,7 @@ impl TopicListKeyMap {
 }
 
 impl KeyMap for TopicListKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => Ok(true),
             KeyCode::Esc => Ok(true),
@@ -324,12 +310,7 @@ impl TopicDetailKeyMap {
 }
 
 impl KeyMap for TopicDetailKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => {
                 app.view = app.previous_view.unwrap_or(View::TopicList);
@@ -406,7 +387,8 @@ impl KeyMap for TopicDetailKeyMap {
                 Ok(false)
             }
             KeyCode::Char('f') => {
-                app.topic_state.enter_link_selection_mode(app.terminal_width);
+                app.topic_state
+                    .enter_link_selection_mode(app.terminal_width);
                 app.ui_state.status_message =
                     "Link mode: press a/o/e/u/i/d/h/t/n/s (home row), Ctrl+g to cancel".to_string();
                 Ok(false)
@@ -529,12 +511,7 @@ impl NotificationsKeyMap {
 }
 
 impl KeyMap for NotificationsKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => {
                 app.view = app.previous_view.unwrap_or(View::TopicList);
@@ -665,12 +642,7 @@ impl ProfileKeyMap {
 }
 
 impl KeyMap for ProfileKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => {
                 app.view = app.previous_view.unwrap_or(View::TopicList);
@@ -759,12 +731,7 @@ impl NodeSelectKeyMap {
 }
 
 impl KeyMap for NodeSelectKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => {
                 if app.node_state.is_completion_mode {
@@ -921,12 +888,7 @@ impl AggregateKeyMap {
 }
 
 impl KeyMap for AggregateKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        key: KeyEvent,
-        client: &V2exClient,
-    ) -> Result<bool> {
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
             KeyCode::Char('q') => Ok(true),
             KeyCode::Esc => Ok(true),
@@ -1088,8 +1050,16 @@ impl<'a> EventHandler<'a> {
         // Route to appropriate key map based on current view
         match app.view {
             View::TopicList => self.topic_list_map.handle_key(app, key, self.client).await,
-            View::TopicDetail => self.topic_detail_map.handle_key(app, key, self.client).await,
-            View::Notifications => self.notifications_map.handle_key(app, key, self.client).await,
+            View::TopicDetail => {
+                self.topic_detail_map
+                    .handle_key(app, key, self.client)
+                    .await
+            }
+            View::Notifications => {
+                self.notifications_map
+                    .handle_key(app, key, self.client)
+                    .await
+            }
             View::Profile => self.profile_map.handle_key(app, key, self.client).await,
             View::Help => self.help_map.handle_key(app, key, self.client).await,
             View::NodeSelect => self.node_select_map.handle_key(app, key, self.client).await,
