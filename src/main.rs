@@ -4,7 +4,7 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 mod api;
 mod app;
 mod browser;
-mod event;
+mod keymap;
 mod nodes;
 mod state;
 mod terminal;
@@ -13,7 +13,7 @@ mod views;
 
 use api::V2exClient;
 use app::{App, View};
-use event::EventHandler;
+use keymap::EventHandler;
 use terminal::TerminalManager;
 
 fn print_help() {
