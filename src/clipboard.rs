@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
-use std::io::Write;
+use crossterm::execute;
+use std::io::{stdout, Write};
 
 /// Copy text to clipboard using OSC 52 escape sequence
 /// 
@@ -19,14 +20,12 @@ pub fn copy_to_clipboard(text: &str) -> Result<()> {
     // ESC ] 52 ; c ; <base64> BEL
     let osc52 = format!("\x1b]52;c;{}\x07", encoded);
     
-    // Write to stdout
-    std::io::stdout()
-        .write_all(osc52.as_bytes())
+    // Write using crossterm to ensure proper terminal handling
+    let mut stdout = stdout();
+    execute!(stdout, crossterm::style::Print(&osc52))
         .context("Failed to write OSC 52 sequence")?;
     
-    std::io::stdout()
-        .flush()
-        .context("Failed to flush stdout")?;
+    stdout.flush().context("Failed to flush stdout")?;
     
     Ok(())
 }
