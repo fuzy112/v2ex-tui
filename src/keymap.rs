@@ -119,8 +119,17 @@ impl KeyMap for LinkSelectionKeyMap {
             KeyCode::Char('t') => self.handle_link_mode_char(app, 't').await,
             KeyCode::Char('n') => self.handle_link_mode_char(app, 'n').await,
             KeyCode::Char('s') => self.handle_link_mode_char(app, 's').await,
+            KeyCode::Char(ch) => {
+                // Any other character key is invalid in link selection mode
+                app.ui_state.status_message = format!(
+                    "Invalid key '{}' - only home row letters (a/o/e/u/i/d/h/t/n/s) are allowed",
+                    ch
+                );
+                app.topic_state.exit_link_selection_mode();
+                Ok(false)
+            }
             _ => {
-                // Ignore other keys in link selection mode
+                // Ignore non-character keys in link selection mode
                 Ok(false)
             }
         }
