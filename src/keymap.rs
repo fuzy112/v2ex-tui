@@ -184,7 +184,7 @@ impl KeyMap for TopicListKeyMap {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
                     app.view = View::TopicDetail;
-                    app.topic_state.show_replies = true;
+                    app.topic_state.show_replies = false;
                     app.load_topic_detail(client, topic_id).await;
                     app.load_topic_replies(client, topic_id, false).await;
                 }
@@ -229,7 +229,7 @@ impl KeyMap for TopicListKeyMap {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
                     app.view = View::TopicDetail;
-                    app.topic_state.show_replies = true;
+                    app.topic_state.show_replies = false;
                     app.load_topic_detail(client, topic_id).await;
                     app.load_topic_replies(client, topic_id, false).await;
                 }
@@ -578,7 +578,7 @@ impl KeyMap for NotificationsKeyMap {
                     if let Some(topic_id) = topic_id {
                         app.previous_view = Some(app.view);
                         app.view = View::TopicDetail;
-                        app.topic_state.show_replies = true;
+                        app.topic_state.show_replies = false;
                         app.load_topic_detail(client, topic_id).await;
                         app.load_topic_replies(client, topic_id, false).await;
 
@@ -957,7 +957,7 @@ impl KeyMap for AggregateKeyMap {
                     if let Some(topic_id) = topic_id {
                         app.previous_view = Some(app.view);
                         app.view = View::TopicDetail;
-                        app.topic_state.show_replies = true;
+                        app.topic_state.show_replies = false;
                         app.load_topic_detail(client, topic_id).await;
                         app.load_topic_replies(client, topic_id, false).await;
                         app.ui_state.status_message =
