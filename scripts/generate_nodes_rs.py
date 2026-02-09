@@ -35,6 +35,7 @@ lines.append('')
 lines.append('use std::sync::OnceLock;')
 lines.append('')
 lines.append('/// Get all available V2EX nodes')
+lines.append('#[rustfmt::skip]')
 lines.append('pub fn get_all_nodes() -> &\'static [(String, String)] {')
 lines.append('    static NODES: OnceLock<Vec<(String, String)>> = OnceLock::new();')
 lines.append('    NODES.get_or_init(|| {')
@@ -42,8 +43,10 @@ lines.append('        vec![')
 
 # Add all nodes
 for i, (node_name, node_title) in enumerate(nodes):
-    # Escape quotes and backslashes
+    # Escape quotes, backslashes, and invisible characters
     escaped_title = node_title.replace('\\', '\\\\').replace('"', '\\"')
+    # Escape word joiner (U+2060) and other invisible characters for clippy
+    escaped_title = escaped_title.replace('\u2060', '\\u{2060}')
     line = f'            ("{node_name}".to_string(), "{escaped_title}".to_string()),'
     lines.append(line)
     
@@ -55,9 +58,10 @@ lines.append('        ]')
 lines.append('    })')
 lines.append('}')
 
-# Write to file
+# Write to file with trailing newline
 output_file = Path('src/nodes.rs')
 with open(output_file, 'w', encoding='utf-8') as f:
     f.write('\n'.join(lines))
+    f.write('\n')  # Add trailing newline
 
 print(f'Generated {output_file} with {len(nodes)} nodes')

@@ -5,6 +5,7 @@
 use std::sync::OnceLock;
 
 /// Get all available V2EX nodes
+#[rustfmt::skip]
 pub fn get_all_nodes() -> &'static [(String, String)] {
     static NODES: OnceLock<Vec<(String, String)>> = OnceLock::new();
     NODES.get_or_init(|| {
@@ -1349,7 +1350,7 @@ pub fn get_all_nodes() -> &'static [(String, String)] {
             ("imagine".to_string(), "图片生成".to_string()),
             ("id".to_string(), "身份标识 🪪".to_string()),
             ("996".to_string(), "正在加班 🕦".to_string()),
-            ("spl".to_string(), "📣 $V2E⁠X".to_string()),
+            ("spl".to_string(), "📣 $V2E\u{2060}X".to_string()),
             ("vote".to_string(), "来个投票 🙋".to_string()),
             ("404".to_string(), "梦想找回 🫧".to_string()),
             ("downshifting".to_string(), "消费降级".to_string()),
