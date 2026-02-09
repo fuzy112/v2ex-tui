@@ -58,6 +58,13 @@ nix-shell --run "cargo run --release"
 - **GitHub**: https://github.com/fuzy112/v2ex-tui
 - **V2EX**: https://www.v2ex.com
 
+## 技术栈
+
+- **Rust** + **Tokio** - 高性能异步运行时
+- **Ratatui** + **Crossterm** - 现代化终端界面框架
+- **Reqwest** + **Serde** - HTTP客户端与JSON处理
+- **Nix** - 声明式开发环境管理
+
 ## 许可证
 
 MIT
