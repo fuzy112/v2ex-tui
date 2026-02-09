@@ -168,6 +168,11 @@ impl KeyMap for TopicListKeyMap {
                 app.topic_state.next_topic();
                 Ok(false)
             }
+            KeyCode::Char(' ') => {
+                // SPC: Scroll down (same as n/Down)
+                app.topic_state.next_topic();
+                Ok(false)
+            }
             KeyCode::Char('p') => {
                 app.topic_state.previous_topic();
                 Ok(false)
@@ -362,6 +367,15 @@ impl KeyMap for TopicDetailKeyMap {
                 Ok(false)
             }
             KeyCode::Down => {
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.topic_state.next_reply(app.terminal_width);
+                } else {
+                    app.topic_state.scroll_down();
+                }
+                Ok(false)
+            }
+            KeyCode::Char(' ') => {
+                // SPC: Scroll down (same as n/Down)
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                     app.topic_state.next_reply(app.terminal_width);
                 } else {
@@ -573,6 +587,11 @@ impl KeyMap for NotificationsKeyMap {
                 Ok(false)
             }
             KeyCode::Down => {
+                app.notification_state.next();
+                Ok(false)
+            }
+            KeyCode::Char(' ') => {
+                // SPC: Scroll down (same as n/Down)
                 app.notification_state.next();
                 Ok(false)
             }
@@ -869,6 +888,13 @@ impl KeyMap for NodeSelectKeyMap {
                 }
                 Ok(false)
             }
+            KeyCode::Char(' ') => {
+                // SPC: Scroll down (same as n/Down)
+                if !app.node_state.is_completion_mode {
+                    app.node_state.next_node();
+                }
+                Ok(false)
+            }
             KeyCode::Char('p') => {
                 if key.modifiers.contains(KeyModifiers::CONTROL) {
                     app.node_state.previous_node();
@@ -1016,6 +1042,11 @@ impl KeyMap for AggregateKeyMap {
                 Ok(false)
             }
             KeyCode::Down => {
+                app.aggregate_state.next_item();
+                Ok(false)
+            }
+            KeyCode::Char(' ') => {
+                // SPC: Scroll down (same as n/Down)
                 app.aggregate_state.next_item();
                 Ok(false)
             }

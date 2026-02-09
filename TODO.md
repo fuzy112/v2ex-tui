@@ -16,7 +16,7 @@
 **Add more Emacs-style keybinds:**
 - [x] `r`, `l` for forward/backward (as in info) - ✅ DONE: History navigation implemented
 - [x] `C-v`, `M-v` for page navigation - ✅ DONE: Page up/down with Ctrl+v and Alt+v
-- [ ] `SPC` for scrolling
+- [x] `SPC` for scrolling - ✅ DONE: Space key scrolls down in all views
 
 **Configurable options:**
 - [ ] Make keymaps configurable

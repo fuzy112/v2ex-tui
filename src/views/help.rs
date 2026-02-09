@@ -25,6 +25,7 @@ Navigation (Emacs/dired style):
   l / ←     - History back (previous view)
   r / →     - History forward (next view)
 
+  SPC       - Scroll down (Space)
   C-v       - Page down (Ctrl+v)
   M-v       - Page up (Alt+v)
   PageUp    - Page up / Scroll up faster
