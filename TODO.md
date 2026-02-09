@@ -14,9 +14,9 @@
 ## 🔧 **Configuration System (Planned)**
 
 **Add more Emacs-style keybinds:**
-- `C-v`, `M-v` for page navigation
-- `SPC` for scrolling
-- `r`, `l` for forward/backward (as in info)
+- [x] `r`, `l` for forward/backward (as in info) - ✅ DONE: History navigation implemented
+- [ ] `C-v`, `M-v` for page navigation
+- [ ] `SPC` for scrolling
 
 **Configurable options:**
 - [ ] Make keymaps configurable
@@ -34,6 +34,10 @@
 3. **Performance optimization** - Caching, async improvements, and reduced redraws
 4. **Additional features** - Search, bookmarking, offline reading
 
+## 🐛 **Code TODOs**
+
+- [ ] **Link highlighting for replies** (`src/views/topic_detail.rs:277`) - Add link highlighting in replies when in link selection mode. Currently only topic content shows highlighted links.
+
 ## ✅ Validation Checklist
 
 **Before committing:**
@@ -43,5 +47,5 @@
 - [ ] `cargo test` passes
 
 ---
-*Last updated: 2025-02-09*
-*Status: Core features complete, configuration system planned*
+*Last updated: 2026-02-09*
+*Status: History navigation implemented, configuration system planned*
