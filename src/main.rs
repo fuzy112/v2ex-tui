@@ -4,6 +4,7 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 mod api;
 mod app;
 mod browser;
+mod clipboard;
 mod keymap;
 mod nodes;
 mod state;

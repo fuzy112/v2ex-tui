@@ -383,6 +383,36 @@ impl App {
         }
     }
 
+    pub fn copy_selected_reply_to_clipboard(&mut self) {
+        if let Some(reply) = self
+            .topic_state
+            .replies
+            .get(self.topic_state.selected_reply)
+        {
+            let content = reply
+                .content_rendered
+                .as_ref()
+                .or(reply.content.as_ref())
+                .map(|s| s.to_string())
+                .unwrap_or_default();
+
+            // Strip HTML tags for plain text
+            let plain_text = html2text::from_read(content.as_bytes(), 80);
+
+            match crate::clipboard::copy_to_clipboard(&plain_text) {
+                Ok(()) => {
+                    self.ui_state.status_message =
+                        format!("Copied reply #{} to clipboard", reply.id);
+                }
+                Err(e) => {
+                    self.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+                }
+            }
+        } else {
+            self.ui_state.status_message = "No reply selected".to_string();
+        }
+    }
+
     pub fn open_selected_topic_in_browser(&mut self) {
         if let Some(topic) = self.topic_state.topics.get(self.topic_state.selected) {
             match Browser::open_topic(topic.id) {

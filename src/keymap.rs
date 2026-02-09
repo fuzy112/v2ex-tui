@@ -399,6 +399,12 @@ impl KeyMap for TopicDetailKeyMap {
                 }
                 Ok(false)
             }
+            KeyCode::Char('w') => {
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.copy_selected_reply_to_clipboard();
+                }
+                Ok(false)
+            }
             KeyCode::Char('f') => {
                 app.topic_state.enter_link_selection_mode(app.terminal_width);
                 app.ui_state.status_message =
