@@ -11,22 +11,28 @@ use std::io::{stdout, Write};
 /// The sequence format is: ESC ] 52 ; c ; <base64-data> BEL
 /// Where 'c' is the clipboard selection (c = clipboard, p = primary, s = secondary)
 pub fn copy_to_clipboard(text: &str) -> Result<()> {
+    if !is_osc52_supported() {
+        return Err(anyhow::anyhow!(
+            "OSC 52 not supported by this terminal emulator"
+        ));
+    }
+
     use base64::Engine;
-    
+
     // Encode text as base64
     let encoded = base64::engine::general_purpose::STANDARD.encode(text);
-    
+
     // Build OSC 52 sequence
     // ESC ] 52 ; c ; <base64> BEL
     let osc52 = format!("\x1b]52;c;{}\x07", encoded);
-    
+
     // Write using crossterm to ensure proper terminal handling
     let mut stdout = stdout();
     execute!(stdout, crossterm::style::Print(&osc52))
         .context("Failed to write OSC 52 sequence")?;
-    
+
     stdout.flush().context("Failed to flush stdout")?;
-    
+
     Ok(())
 }
 
@@ -34,7 +40,6 @@ pub fn copy_to_clipboard(text: &str) -> Result<()> {
 /// 
 /// This is a best-effort check. We look for common terminal emulators
 /// that are known to support OSC 52.
-#[allow(dead_code)] // Not currently used, but kept for future use
 pub fn is_osc52_supported() -> bool {
     // Check for known supporting terminals via environment variables
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();
