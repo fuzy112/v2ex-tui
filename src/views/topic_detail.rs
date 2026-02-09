@@ -236,6 +236,7 @@ impl TopicDetailView {
         self.render_replies(
             frame,
             replies_area,
+            topic,
             replies,
             list_state,
             detected_links,
@@ -250,6 +251,7 @@ impl TopicDetailView {
         &self,
         frame: &mut Frame,
         area: Rect,
+        topic: &Topic,
         replies: &[crate::api::Reply],
         list_state: &mut ListState,
         _detected_links: &[DetectedLink],
@@ -257,6 +259,9 @@ impl TopicDetailView {
         _parsed_content: Option<&str>,
         theme: &Theme,
     ) {
+        let total_replies = topic.replies as usize;
+        let loaded_replies = replies.len();
+        let has_more = loaded_replies < total_replies;
         let items: Vec<ListItem> = replies
             .iter()
             .enumerate()
@@ -314,12 +319,19 @@ impl TopicDetailView {
             })
             .collect();
 
+        // Build title with reply count info
+        let title = if has_more {
+            format!(" Replies ({}/{} - press + for more) ", loaded_replies, total_replies)
+        } else {
+            format!(" Replies ({}/{}) ", loaded_replies, total_replies)
+        };
+
         let list = List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(theme.primary))
-                    .title(" Replies "),
+                    .title(title),
             )
             .highlight_style(
                 Style::default()
