@@ -34,11 +34,10 @@ fn print_help() {
     println!();
     println!("Keyboard Shortcuts (Emacs/dired style):");
     println!("  n / p or ↓ / ↑ Move down/up (next/previous)");
-    println!("  h / ← or l / → Navigate back/forward");
+    println!("  l / ← or r / → History back/forward (navigate view history)");
     println!("  Enter / t      Open selected topic/notification");
     println!(
         "  g              Refresh
-   r              Open topic/reply in browser (in topic detail)
    f              Enter link selection mode (in topic detail)
    w              Copy topic content or selected reply to clipboard (in topic detail)"
     );
@@ -56,7 +55,7 @@ fn print_help() {
     println!("  N / P          Next/previous topic in detail view");
     println!("  < / >          Go to first/last item");
     println!("  ?              Help");
-    println!("  q / Esc        Quit");
+    println!("  q / Esc        Quit / Remove current view from history");
 }
 
 fn print_version() {

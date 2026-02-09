@@ -139,15 +139,25 @@ impl TopicListKeyMap {
 impl KeyMap for TopicListKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => Ok(true),
-            KeyCode::Esc => Ok(true),
-            KeyCode::Char('?') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Help;
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
-                // Already in topic list, no-op
+            KeyCode::Char('?') => {
+                app.navigate_to(View::Help);
+                Ok(false)
+            }
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
                 Ok(false)
             }
             KeyCode::Char('n') => {
@@ -166,18 +176,14 @@ impl KeyMap for TopicListKeyMap {
                 app.topic_state.previous_topic();
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+            KeyCode::Enter => {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
-                    app.view = View::TopicDetail;
                     app.topic_state.show_replies = false;
                     app.load_topic_detail(client, topic_id).await;
                     app.load_topic_replies(client, topic_id, false).await;
+                    app.navigate_to(View::TopicDetail);
                 }
-                Ok(false)
-            }
-            KeyCode::Char('r') => {
-                app.open_selected_topic_in_browser();
                 Ok(false)
             }
             KeyCode::Char('g') => {
@@ -185,39 +191,35 @@ impl KeyMap for TopicListKeyMap {
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Aggregate;
                 app.load_aggregate(client).await;
+                app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Notifications;
                 app.load_notifications(client).await;
+                app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Profile;
                 app.load_profile(client).await;
+                app.navigate_to(View::Profile);
                 Ok(false)
             }
             KeyCode::Char('s') => {
-                app.previous_view = Some(app.view);
-                app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;
                 app.node_state.is_completion_mode = true;
                 app.node_state.update_suggestions();
+                app.navigate_to(View::NodeSelect);
                 Ok(false)
             }
             KeyCode::Char('t') => {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
-                    app.view = View::TopicDetail;
                     app.topic_state.show_replies = false;
                     app.load_topic_detail(client, topic_id).await;
                     app.load_topic_replies(client, topic_id, false).await;
+                    app.navigate_to(View::TopicDetail);
                 }
                 Ok(false)
             }
@@ -312,24 +314,25 @@ impl TopicDetailKeyMap {
 impl KeyMap for TopicDetailKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
-                Ok(false)
-            }
-            KeyCode::Esc => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
             KeyCode::Char('?') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Help;
+                app.navigate_to(View::Help);
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
-                app.view = View::TopicList;
-                app.ui_state.error = None;
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
                 Ok(false)
             }
             KeyCode::Char('n') => {
@@ -364,20 +367,8 @@ impl KeyMap for TopicDetailKeyMap {
                 }
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Right => {
-                // Already in topic detail, no-op
-                Ok(false)
-            }
             KeyCode::Enter => {
                 // Already in topic detail, no-op
-                Ok(false)
-            }
-            KeyCode::Char('r') => {
-                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.open_selected_reply_in_browser();
-                } else {
-                    app.open_current_topic_in_browser();
-                }
                 Ok(false)
             }
             KeyCode::Char('w') => {
@@ -405,30 +396,26 @@ impl KeyMap for TopicDetailKeyMap {
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Aggregate;
                 app.load_aggregate(client).await;
+                app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Notifications;
                 app.load_notifications(client).await;
+                app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Profile;
                 app.load_profile(client).await;
+                app.navigate_to(View::Profile);
                 Ok(false)
             }
             KeyCode::Char('s') => {
-                app.previous_view = Some(app.view);
-                app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;
                 app.node_state.is_completion_mode = true;
                 app.node_state.update_suggestions();
+                app.navigate_to(View::NodeSelect);
                 Ok(false)
             }
             KeyCode::Char('t') => {
@@ -516,24 +503,25 @@ impl NotificationsKeyMap {
 impl KeyMap for NotificationsKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
-                Ok(false)
-            }
-            KeyCode::Esc => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
             KeyCode::Char('?') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Help;
+                app.navigate_to(View::Help);
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
-                app.view = View::TopicList;
-                app.ui_state.error = None;
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
                 Ok(false)
             }
             KeyCode::Char('n') => {
@@ -552,7 +540,7 @@ impl KeyMap for NotificationsKeyMap {
                 app.notification_state.previous();
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+            KeyCode::Enter => {
                 if let Some(notification) = app
                     .notification_state
                     .notifications
@@ -562,11 +550,10 @@ impl KeyMap for NotificationsKeyMap {
                     let reply_id = notification.extract_reply_id();
 
                     if let Some(topic_id) = topic_id {
-                        app.previous_view = Some(app.view);
-                        app.view = View::TopicDetail;
                         app.topic_state.show_replies = false;
                         app.load_topic_detail(client, topic_id).await;
                         app.load_topic_replies(client, topic_id, false).await;
+                        app.navigate_to(View::TopicDetail);
 
                         if let Some(reply_id) = reply_id {
                             app.ui_state.status_message =
@@ -581,18 +568,13 @@ impl KeyMap for NotificationsKeyMap {
                 }
                 Ok(false)
             }
-            KeyCode::Char('r') => {
-                app.open_notification_in_browser();
-                Ok(false)
-            }
             KeyCode::Char('g') => {
                 app.load_notifications(client).await;
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Aggregate;
                 app.load_aggregate(client).await;
+                app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
@@ -601,18 +583,16 @@ impl KeyMap for NotificationsKeyMap {
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Profile;
                 app.load_profile(client).await;
+                app.navigate_to(View::Profile);
                 Ok(false)
             }
             KeyCode::Char('s') => {
-                app.previous_view = Some(app.view);
-                app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;
                 app.node_state.is_completion_mode = true;
                 app.node_state.update_suggestions();
+                app.navigate_to(View::NodeSelect);
                 Ok(false)
             }
             KeyCode::Char('o') => {
@@ -647,24 +627,25 @@ impl ProfileKeyMap {
 impl KeyMap for ProfileKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
-                Ok(false)
-            }
-            KeyCode::Esc => {
-                app.view = app.previous_view.unwrap_or(View::TopicList);
-                app.ui_state.error = None;
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
             KeyCode::Char('?') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Help;
+                app.navigate_to(View::Help);
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
-                app.view = View::TopicList;
-                app.ui_state.error = None;
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
                 Ok(false)
             }
             KeyCode::Char('g') => {
@@ -672,15 +653,13 @@ impl KeyMap for ProfileKeyMap {
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Aggregate;
                 app.load_aggregate(client).await;
+                app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Notifications;
                 app.load_notifications(client).await;
+                app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
@@ -689,12 +668,11 @@ impl KeyMap for ProfileKeyMap {
                 Ok(false)
             }
             KeyCode::Char('s') => {
-                app.previous_view = Some(app.view);
-                app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;
                 app.node_state.is_completion_mode = true;
                 app.node_state.update_suggestions();
+                app.navigate_to(View::NodeSelect);
                 Ok(false)
             }
             _ => Ok(false),
@@ -712,15 +690,31 @@ impl HelpKeyMap {
 }
 
 impl KeyMap for HelpKeyMap {
-    async fn handle_key(
-        &self,
-        app: &mut App,
-        _key: KeyEvent,
-        _client: &V2exClient,
-    ) -> Result<bool> {
-        // Any key exits help view
-        app.view = app.previous_view.unwrap_or(View::TopicList);
-        Ok(false)
+    async fn handle_key(&self, app: &mut App, key: KeyEvent, _client: &V2exClient) -> Result<bool> {
+        match key.code {
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
+                Ok(false)
+            }
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
+                Ok(false)
+            }
+            _ => {
+                // Any other key exits help view (history back)
+                app.history_back();
+                Ok(false)
+            }
+        }
     }
 }
 
@@ -740,28 +734,59 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('q');
                 } else {
-                    app.view = View::TopicList;
+                    // Remove current view from history, exit if empty
+                    if app.remove_current_from_history().is_none() {
+                        return Ok(true);
+                    }
                 }
                 Ok(false)
             }
             KeyCode::Esc => {
-                app.view = View::TopicList;
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
             KeyCode::Char('?') => {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('?');
                 } else {
-                    app.previous_view = Some(app.view);
-                    app.view = View::Help;
+                    app.navigate_to(View::Help);
                 }
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
+            KeyCode::Char('l') | KeyCode::Left => {
                 if app.node_state.is_completion_mode {
-                    app.node_state.insert_char('h');
+                    app.node_state.insert_char('l');
                 } else {
-                    app.view = View::TopicList;
+                    // History back
+                    app.history_back();
+                }
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                if app.node_state.is_completion_mode {
+                    app.node_state.insert_char('r');
+                } else {
+                    // History forward
+                    app.history_forward();
+                }
+                Ok(false)
+            }
+            KeyCode::Enter => {
+                if app.node_state.is_completion_mode {
+                    // In completion mode, Enter selects the node
+                    app.node_state.select_current_node();
+                    app.node_state.reset_selection();
+                    app.load_topics(client, false).await;
+                    app.navigate_to(View::TopicList);
+                } else {
+                    // Not in completion mode, Enter also selects
+                    app.node_state.select_current_node();
+                    app.node_state.reset_selection();
+                    app.load_topics(client, false).await;
+                    app.navigate_to(View::TopicList);
                 }
                 Ok(false)
             }
@@ -797,17 +822,6 @@ impl KeyMap for NodeSelectKeyMap {
                 }
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
-                if app.node_state.is_completion_mode {
-                    app.node_state.insert_char('l');
-                } else {
-                    app.node_state.select_current_node();
-                    app.node_state.reset_selection();
-                    app.view = View::TopicList;
-                    app.load_topics(client, false).await;
-                }
-                Ok(false)
-            }
             KeyCode::Char('g') => {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('g');
@@ -817,6 +831,9 @@ impl KeyMap for NodeSelectKeyMap {
             KeyCode::Char('a') => {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('a');
+                } else {
+                    app.load_aggregate(client).await;
+                    app.navigate_to(View::Aggregate);
                 }
                 Ok(false)
             }
@@ -824,9 +841,8 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('m');
                 } else {
-                    app.previous_view = Some(app.view);
-                    app.view = View::Notifications;
                     app.load_notifications(client).await;
+                    app.navigate_to(View::Notifications);
                 }
                 Ok(false)
             }
@@ -834,9 +850,8 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('u');
                 } else {
-                    app.previous_view = Some(app.view);
-                    app.view = View::Profile;
                     app.load_profile(client).await;
+                    app.navigate_to(View::Profile);
                 }
                 Ok(false)
             }
@@ -893,16 +908,25 @@ impl AggregateKeyMap {
 impl KeyMap for AggregateKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => Ok(true),
-            KeyCode::Esc => Ok(true),
-            KeyCode::Char('?') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Help;
+            KeyCode::Char('q') | KeyCode::Esc => {
+                // Remove current view from history, exit if empty
+                if app.remove_current_from_history().is_none() {
+                    return Ok(true);
+                }
                 Ok(false)
             }
-            KeyCode::Char('h') | KeyCode::Left => {
-                app.view = View::TopicList;
-                app.ui_state.error = None;
+            KeyCode::Char('?') => {
+                app.navigate_to(View::Help);
+                Ok(false)
+            }
+            KeyCode::Char('l') | KeyCode::Left => {
+                // History back
+                app.history_back();
+                Ok(false)
+            }
+            KeyCode::Char('r') | KeyCode::Right => {
+                // History forward
+                app.history_forward();
                 Ok(false)
             }
             KeyCode::Char('n') => {
@@ -921,16 +945,15 @@ impl KeyMap for AggregateKeyMap {
                 app.aggregate_state.previous_item();
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Right | KeyCode::Enter => {
+            KeyCode::Enter => {
                 if let Some(item) = app.aggregate_state.items.get(app.aggregate_state.selected) {
                     let topic_id = item.extract_topic_id();
 
                     if let Some(topic_id) = topic_id {
-                        app.previous_view = Some(app.view);
-                        app.view = View::TopicDetail;
                         app.topic_state.show_replies = false;
                         app.load_topic_detail(client, topic_id).await;
                         app.load_topic_replies(client, topic_id, false).await;
+                        app.navigate_to(View::TopicDetail);
                         app.ui_state.status_message =
                             format!("Loading topic {} from RSS", topic_id);
                     } else {
@@ -939,10 +962,6 @@ impl KeyMap for AggregateKeyMap {
                         app.open_selected_aggregate_in_browser();
                     }
                 }
-                Ok(false)
-            }
-            KeyCode::Char('r') => {
-                app.open_selected_aggregate_in_browser();
                 Ok(false)
             }
             KeyCode::Char('g') => {
@@ -955,24 +974,21 @@ impl KeyMap for AggregateKeyMap {
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Notifications;
                 app.load_notifications(client).await;
+                app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.previous_view = Some(app.view);
-                app.view = View::Profile;
                 app.load_profile(client).await;
+                app.navigate_to(View::Profile);
                 Ok(false)
             }
             KeyCode::Char('s') => {
-                app.previous_view = Some(app.view);
-                app.view = View::NodeSelect;
                 app.node_state.completion_input.clear();
                 app.node_state.completion_cursor = 0;
                 app.node_state.is_completion_mode = true;
                 app.node_state.update_suggestions();
+                app.navigate_to(View::NodeSelect);
                 Ok(false)
             }
             KeyCode::Char('t') => {

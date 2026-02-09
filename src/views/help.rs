@@ -22,12 +22,12 @@ Keyboard Shortcuts:
 Navigation (Emacs/dired style):
   n / ↓     - Move down (next) / Scroll down
   p / ↑     - Move up (previous) / Scroll up
-  h / ←     - Go back
-  l / →     - Open selected item
+  l / ←     - History back (previous view)
+  r / →     - History forward (next view)
 
   PageUp    - Page up / Scroll up faster
   PageDown  - Page down / Scroll down faster
-  < / >      - Go to first/last item
+  < / >     - Go to first/last item
 
 Actions:
   Enter     - Open selected topic/notification
@@ -36,7 +36,7 @@ Actions:
   u         - Go to profile (user)
   a         - Go to aggregated topics (RSS feeds)
 
-  q / Esc   - Quit / Go back
+  q / Esc   - Quit / Remove current view from history
 
 Topic List:
   s         - Select node from menu
@@ -47,11 +47,11 @@ Topic List:
 Aggregated Topics:
   a         - Switch to aggregated view
   t / c / k - Switch to tech/creative/play tab
-  a / j / d - Switch to apple/jobs/deals tab  
+  a / j / d - Switch to apple/jobs/deals tab
   y / z / i - Switch to city/qna/index tab
   n / p     - Navigate topics
   Enter     - Open selected topic in app
-  l / o     - Open selected topic in browser
+  o         - Open selected topic in browser
   g         - Refresh current view
 
 Node Selection:
@@ -61,8 +61,7 @@ Node Selection:
 
 Topic Detail:
   t         - Toggle replies view
-  r         - Open topic/reply in browser
-  o         - Open in browser
+  o         - Open topic/reply in browser
   f         - Enter link selection mode
   w         - Copy selected reply to clipboard
   N / P     - Navigate between topics

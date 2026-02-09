@@ -40,12 +40,16 @@ pub struct App {
     pub aggregate_state: AggregateState,
     pub terminal_width: usize,
     pub terminal_height: usize,
+    // History navigation
+    pub view_history: Vec<View>,
+    pub history_position: usize,
 }
 
 impl App {
     pub fn new() -> Self {
+        let initial_view = View::Aggregate;
         Self {
-            view: View::Aggregate,
+            view: initial_view,
             previous_view: None,
             topic_state: TopicState::default(),
             notification_state: NotificationState::default(),
@@ -56,6 +60,8 @@ impl App {
             aggregate_state: AggregateState::new(),
             terminal_width: 80,  // Default width
             terminal_height: 24, // Default height
+            view_history: vec![initial_view],
+            history_position: 0,
         }
     }
 
@@ -514,6 +520,79 @@ impl App {
         } else {
             self.ui_state.status_message.clone()
         }
+    }
+
+    // History navigation methods
+    const MAX_HISTORY_SIZE: usize = 50;
+
+    /// Navigate to a new view, mutating the history stack
+    pub fn navigate_to(&mut self, view: View) {
+        // Truncate forward history
+        if self.history_position + 1 < self.view_history.len() {
+            self.view_history.truncate(self.history_position + 1);
+        }
+
+        // Push new view
+        self.view_history.push(view);
+        self.history_position = self.view_history.len() - 1;
+
+        // Enforce max history size
+        if self.view_history.len() > Self::MAX_HISTORY_SIZE {
+            let excess = self.view_history.len() - Self::MAX_HISTORY_SIZE;
+            self.view_history.drain(0..excess);
+            self.history_position -= excess;
+        }
+
+        self.view = view;
+        self.ui_state.error = None;
+    }
+
+    /// Navigate backward in history (l key)
+    pub fn history_back(&mut self) -> bool {
+        if self.history_position > 0 {
+            self.history_position -= 1;
+            self.view = self.view_history[self.history_position];
+            self.ui_state.error = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Navigate forward in history (r key)
+    pub fn history_forward(&mut self) -> bool {
+        if self.history_position + 1 < self.view_history.len() {
+            self.history_position += 1;
+            self.view = self.view_history[self.history_position];
+            self.ui_state.error = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Remove current view from history and return the view to navigate to (q/Esc)
+    /// Returns None if history is empty after removal (should exit app)
+    pub fn remove_current_from_history(&mut self) -> Option<View> {
+        if self.view_history.is_empty() {
+            return None;
+        }
+
+        // Remove current view
+        self.view_history.remove(self.history_position);
+
+        if self.view_history.is_empty() {
+            return None;
+        }
+
+        // Go to previous item in history
+        if self.history_position > 0 {
+            self.history_position -= 1;
+        }
+
+        self.view = self.view_history[self.history_position];
+        self.ui_state.error = None;
+        Some(self.view)
     }
 
     // Rendering
