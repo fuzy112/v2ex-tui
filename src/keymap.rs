@@ -239,6 +239,24 @@ impl KeyMap for TopicListKeyMap {
                 }
                 Ok(false)
             }
+            // Emacs-style page navigation
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // C-v: Page down (move down 5 topics)
+                let len = app.topic_state.topics.len();
+                if len > 0 {
+                    app.topic_state.selected = (app.topic_state.selected + 5).min(len - 1);
+                }
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // M-v: Page up (move up 5 topics)
+                if app.topic_state.selected >= 5 {
+                    app.topic_state.selected -= 5;
+                } else {
+                    app.topic_state.selected = 0;
+                }
+                Ok(false)
+            }
             KeyCode::Char('+') => {
                 app.node_state.page += 1;
                 app.load_topics(client, true).await;
@@ -462,6 +480,32 @@ impl KeyMap for TopicDetailKeyMap {
                 }
                 Ok(false)
             }
+            // Emacs-style page navigation
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // C-v: Page down (scroll down faster)
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    app.topic_state.selected_reply =
+                        (app.topic_state.selected_reply + 5).min(app.topic_state.replies.len() - 1);
+                } else {
+                    app.topic_state.scroll += 15;
+                }
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // M-v: Page up (scroll up faster)
+                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                    if app.topic_state.selected_reply >= 5 {
+                        app.topic_state.selected_reply -= 5;
+                    } else {
+                        app.topic_state.selected_reply = 0;
+                    }
+                } else if app.topic_state.scroll >= 15 {
+                    app.topic_state.scroll -= 15;
+                } else {
+                    app.topic_state.scroll = 0;
+                }
+                Ok(false)
+            }
             KeyCode::Char('+') => {
                 if app.topic_state.show_replies {
                     if let Some(ref topic) = app.topic_state.current {
@@ -607,6 +651,25 @@ impl KeyMap for NotificationsKeyMap {
                 if !app.notification_state.notifications.is_empty() {
                     app.notification_state.selected =
                         app.notification_state.notifications.len() - 1;
+                }
+                Ok(false)
+            }
+            // Emacs-style page navigation
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // C-v: Page down (move down 5 notifications)
+                let len = app.notification_state.notifications.len();
+                if len > 0 {
+                    app.notification_state.selected =
+                        (app.notification_state.selected + 5).min(len - 1);
+                }
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // M-v: Page up (move up 5 notifications)
+                if app.notification_state.selected >= 5 {
+                    app.notification_state.selected -= 5;
+                } else {
+                    app.notification_state.selected = 0;
                 }
                 Ok(false)
             }
@@ -879,6 +942,25 @@ impl KeyMap for NodeSelectKeyMap {
                 }
                 Ok(false)
             }
+            // Emacs-style page navigation
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // C-v: Page down (move down 5 nodes)
+                if !app.node_state.is_completion_mode {
+                    for _ in 0..5 {
+                        app.node_state.next_node();
+                    }
+                }
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // M-v: Page up (move up 5 nodes)
+                if !app.node_state.is_completion_mode {
+                    for _ in 0..5 {
+                        app.node_state.previous_node();
+                    }
+                }
+                Ok(false)
+            }
             KeyCode::Backspace => {
                 if app.node_state.is_completion_mode {
                     app.node_state.delete_char();
@@ -998,6 +1080,24 @@ impl KeyMap for AggregateKeyMap {
             }
             KeyCode::Char('o') => {
                 app.open_selected_aggregate_in_browser();
+                Ok(false)
+            }
+            // Emacs-style page navigation
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // C-v: Page down (move down 5 items)
+                let len = app.aggregate_state.items.len();
+                if len > 0 {
+                    app.aggregate_state.selected = (app.aggregate_state.selected + 5).min(len - 1);
+                }
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                // M-v: Page up (move up 5 items)
+                if app.aggregate_state.selected >= 5 {
+                    app.aggregate_state.selected -= 5;
+                } else {
+                    app.aggregate_state.selected = 0;
+                }
                 Ok(false)
             }
             KeyCode::Char('<') => {
