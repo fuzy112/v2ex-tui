@@ -241,6 +241,7 @@ mod tests {
             link: format!("https://example.com/{}", id),
             date: "2026-02-07 12:00".to_string(),
             author: Some("test".to_string()),
+            timestamp: Some(1738920000), // 2026-02-07 12:00 UTC
         }
     }
 
