@@ -339,7 +339,7 @@ pub fn parse_key(s: &str) -> Result<Key> {
     let remaining: String = chars.collect();
     let code = match remaining.as_str() {
         "SPC" => KeyCode::Char(' '),
-        "RET" => KeyCode::Enter,
+        "RET" | "Enter" => KeyCode::Enter,
         "ESC" => KeyCode::Esc,
         "TAB" => KeyCode::Tab,
         "DEL" => KeyCode::Delete,
@@ -410,6 +410,9 @@ mod tests {
 
         // Test special keys
         let key = parse_key("RET").unwrap();
+        assert_eq!(key.code, KeyCode::Enter);
+
+        let key = parse_key("Enter").unwrap();
         assert_eq!(key.code, KeyCode::Enter);
 
         let key = parse_key("ESC").unwrap();
