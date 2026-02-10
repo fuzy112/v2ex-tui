@@ -58,7 +58,7 @@ pub fn load_config_from(path: &Path) -> Result<ConfigEngine> {
 }
 
 /// Reload configuration
-pub fn reload_config(engine: &mut ConfigEngine) -> Result {
+pub fn reload_config(engine: &mut ConfigEngine) -> anyhow::Result<()> {
     let config_file = crate::config::Config::config_file()?;
 
     // Reset the runtime config

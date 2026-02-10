@@ -5,6 +5,7 @@ mod api;
 mod app;
 mod browser;
 mod clipboard;
+mod config;
 mod keymap;
 mod nodes;
 mod state;
@@ -120,17 +121,92 @@ async fn run_token_input(terminal: &mut TerminalManager) -> Result<Option<String
 
 async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<()> {
     let mut app = App::new();
-    let mut event_handler = EventHandler::new(&client);
 
-    // Load initial aggregated topics
-    app.load_aggregate(&client).await;
+    // Initialize configuration
+    let (mut config_engine, message) = config::init_config()?;
+
+    // Show initialization message if any
+    if let Some(msg) = message {
+        app.ui_state.status_message = msg;
+    }
+
+    // Get runtime config for building keymap chains
+    let runtime_config = config_engine.runtime_config();
+
+    // Load initial view based on config
+    {
+        let config = &runtime_config.borrow().config;
+        match config.initial_view {
+            View::TopicList => {
+                app.load_topics(&client, false).await;
+                app.navigate_to(View::TopicList);
+            }
+            View::Notifications => {
+                app.load_notifications(&client).await;
+                app.navigate_to(View::Notifications);
+            }
+            View::Profile => {
+                app.load_profile(&client).await;
+                app.navigate_to(View::Profile);
+            }
+            View::Aggregate | _ => {
+                app.load_aggregate(&client).await;
+                app.navigate_to(View::Aggregate);
+            }
+        }
+    }
 
     loop {
         terminal.terminal().draw(|frame| app.render(frame))?;
 
         if let Event::Key(key) = crossterm::event::read()? {
-            if key.kind == KeyEventKind::Press && event_handler.handle_key(&mut app, key).await? {
-                break;
+            if key.kind == KeyEventKind::Press {
+                // Convert to our Key type
+                let key: keymap::Key = key.into();
+
+                // Build keymap chain for current state
+                let active_modes: Vec<String> = if app.topic_state.link_input_state.is_active {
+                    vec!["link-selection".to_string()]
+                } else if app.topic_state.show_replies {
+                    vec!["replies".to_string()]
+                } else {
+                    vec![]
+                };
+
+                let chain = {
+                    let runtime = runtime_config.borrow();
+                    runtime.build_keymap_chain(app.view, &active_modes)
+                };
+
+                // Look up the key
+                if let Some(binding) = chain.lookup(&key) {
+                    match binding {
+                        keymap::Binding::Action(action_name) => {
+                            let action = {
+                                let runtime = runtime_config.borrow();
+                                runtime.action_registry.get(action_name).cloned()
+                            };
+
+                            if let Some(action) = action {
+                                let should_exit = {
+                                    let runtime = runtime_config.borrow();
+                                    runtime
+                                        .action_registry
+                                        .execute(&action, &mut app, &client)
+                                        .await?
+                                };
+                                if should_exit {
+                                    break;
+                                }
+                            }
+                        }
+                        keymap::Binding::Prefix(_prefix_map) => {
+                            // TODO: Handle key sequences
+                            app.ui_state.status_message =
+                                "Key sequences not yet implemented".to_string();
+                        }
+                    }
+                }
             }
         }
     }
