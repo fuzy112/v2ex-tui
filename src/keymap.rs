@@ -75,8 +75,11 @@ impl LinkSelectionKeyMap {
                 input,
                 shortcuts.join(", ")
             );
+        } else {
+            // No matching links for this input - exit link mode
+            app.ui_state.status_message = format!("No link matching '{}'", input);
+            app.topic_state.exit_link_selection_mode();
         }
-        // matches.len() == 0: silent ignore (user confirmed)
 
         Ok(false)
     }
