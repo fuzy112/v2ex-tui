@@ -40,6 +40,7 @@ Actions:
   a         - Go to aggregated topics (RSS feeds)
 
   q / Esc   - Quit / Remove current view from history
+  C-c       - Exit app immediately
 
 Topic List:
   s         - Select node from menu

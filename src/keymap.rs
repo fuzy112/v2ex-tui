@@ -142,6 +142,10 @@ impl TopicListKeyMap {
 impl KeyMap for TopicListKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
@@ -362,6 +366,10 @@ impl TopicDetailKeyMap {
 impl KeyMap for TopicDetailKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
@@ -690,6 +698,10 @@ impl NotificationsKeyMap {
 impl KeyMap for NotificationsKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
@@ -838,6 +850,10 @@ impl ProfileKeyMap {
 impl KeyMap for ProfileKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
@@ -903,6 +919,10 @@ impl HelpKeyMap {
 impl KeyMap for HelpKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, _client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
@@ -941,6 +961,10 @@ impl NodeSelectKeyMap {
 impl KeyMap for NodeSelectKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') => {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('q');
@@ -1145,6 +1169,10 @@ impl AggregateKeyMap {
 impl KeyMap for AggregateKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, client: &V2exClient) -> Result<bool> {
         match key.code {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                // Exit app immediately
+                return Ok(true);
+            }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
