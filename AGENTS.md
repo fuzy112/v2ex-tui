@@ -176,3 +176,8 @@ Authorization: Bearer <token>
 - **V2EX Official Blog RSS**: https://blog.v2ex.com/rss/ - For updates and announcements about V2EX platform
 
 Always follow existing patterns and maintain consistency.
+
+## Documentation
+
+- TODO.md:  Planned but not yet implemented features
+- docs/*.md:  Design for planned features
