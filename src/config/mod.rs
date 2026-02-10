@@ -182,9 +182,9 @@ impl RuntimeConfig {
     pub fn new() -> Self {
         let config = Config::default();
         let action_registry = ActionRegistry::new();
-        let global_keymap = KeyMap::new("global");
-        let view_keymaps = HashMap::new();
-        let mode_keymaps = HashMap::new();
+        let global_keymap = Self::create_default_global_keymap();
+        let view_keymaps = Self::create_default_view_keymaps();
+        let mode_keymaps = Self::create_default_mode_keymaps();
 
         Self {
             config,
@@ -193,6 +193,341 @@ impl RuntimeConfig {
             mode_keymaps,
             action_registry,
         }
+    }
+
+    fn create_default_global_keymap() -> KeyMap {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        let mut keymap = KeyMap::new("global");
+
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('c'),
+                modifiers: KeyModifiers::CONTROL,
+            },
+            "quit-immediate",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('q'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "remove-from-history",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::empty(),
+            },
+            "remove-from-history",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('l'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "history-back",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('r'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "history-forward",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('?'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "show-help",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('g'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "refresh",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('a'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-aggregate",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('m'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-notifications",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('u'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-profile",
+        );
+        keymap.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('s'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-node-select",
+        );
+
+        keymap
+    }
+
+    fn create_default_view_keymaps() -> HashMap<View, KeyMap> {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        let mut keymaps = HashMap::new();
+
+        // Topic List
+        let mut topic_list = KeyMap::new("topic-list");
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-topic",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('p'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-topic",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('t'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-topic",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-topic",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('+'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "load-more-topics",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-in-browser",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('s'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "select-node",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('<'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "first-item",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('>'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "last-item",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::CONTROL,
+            },
+            "page-down",
+        );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::ALT,
+            },
+            "page-up",
+        );
+        keymaps.insert(View::TopicList, topic_list);
+
+        // Topic Detail
+        let mut topic_detail = KeyMap::new("topic-detail");
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('t'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "toggle-replies",
+        );
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-in-browser",
+        );
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('f'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "enter-link-mode",
+        );
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('+'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "load-more-replies",
+        );
+        keymaps.insert(View::TopicDetail, topic_detail);
+
+        keymaps
+    }
+
+    fn create_default_mode_keymaps() -> HashMap<String, KeyMap> {
+        use crossterm::event::{KeyCode, KeyModifiers};
+
+        let mut keymaps = HashMap::new();
+
+        // Replies mode
+        let mut replies = KeyMap::new("replies");
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-reply",
+        );
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('p'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-reply",
+        );
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('+'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "load-more-replies",
+        );
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('<'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "first-item",
+        );
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('>'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "last-item",
+        );
+        keymaps.insert("replies".to_string(), replies);
+
+        // Link selection mode
+        let mut link_selection = KeyMap::new("link-selection");
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('a'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-a",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-o",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('e'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-e",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('u'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-u",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('i'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-i",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('d'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-d",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('h'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-h",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('t'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-t",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-n",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('s'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "link-select-s",
+        );
+        link_selection.bind(
+            crate::keymap::Key {
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::empty(),
+            },
+            "exit-link-mode",
+        );
+        keymaps.insert("link-selection".to_string(), link_selection);
+
+        keymaps
     }
 
     /// Reset to default state
