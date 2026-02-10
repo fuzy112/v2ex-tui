@@ -523,7 +523,13 @@ impl KeyMap for TopicDetailKeyMap {
             KeyCode::Char('+') => {
                 if app.topic_state.show_replies {
                     if let Some(ref topic) = app.topic_state.current {
-                        app.load_topic_replies(client, topic.id, true).await;
+                        let loaded_replies = app.topic_state.replies.len();
+                        let total_replies = topic.replies as usize;
+                        if loaded_replies < total_replies {
+                            app.load_topic_replies(client, topic.id, true).await;
+                        } else {
+                            app.ui_state.status_message = "No more replies to load".to_string();
+                        }
                     }
                 }
                 Ok(false)
