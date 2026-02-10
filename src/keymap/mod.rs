@@ -145,10 +145,10 @@ impl KeyMapChain {
     }
 
     /// Lookup a key in priority order
-    /// Returns the first match found
+    /// Returns the first match found (includes parent keymap fall-through)
     pub fn lookup(&self, key: &Key) -> Option<&Binding> {
         for keymap in self.keymaps.iter().rev() {
-            if let Some(binding) = keymap.lookup_local(key) {
+            if let Some(binding) = keymap.lookup(key) {
                 return Some(binding);
             }
         }

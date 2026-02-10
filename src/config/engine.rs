@@ -563,19 +563,19 @@ mod tests {
     fn test_config_file_and_defaults_combined() {
         let mut engine = ConfigEngine::new();
 
-        // Initially, the default keymap should have 'n' bound to 'next-topic' from RuntimeConfig::new()
+        // 'n' is now in browse mode (shared navigation), not in topic-list view
         let config = engine.runtime_config.borrow();
         let key_n = parse_key("n").unwrap();
-        let has_default_binding = config
-            .view_keymaps
-            .get(&View::TopicList)
+        let has_browse_binding = config
+            .mode_keymaps
+            .get("browse")
             .and_then(|km| km.lookup(&key_n))
             .is_some();
         drop(config);
 
         println!(
-            "Has default 'n' binding before config load: {}",
-            has_default_binding
+            "Has 'n' binding in browse mode before config load: {}",
+            has_browse_binding
         );
 
         // Now load config that also binds a key
@@ -596,13 +596,20 @@ mod tests {
             .get(&View::TopicList)
             .expect("Topic list keymap should exist");
 
-        let has_n = topic_list_km.lookup(&key_n).is_some();
+        let has_browse = config
+            .mode_keymaps
+            .get("browse")
+            .and_then(|km| km.lookup(&key_n))
+            .is_some();
         let has_x = topic_list_km.lookup(&key_x).is_some();
 
-        println!("After config load - has 'n': {}, has 'x': {}", has_n, has_x);
+        println!(
+            "After config load - browse mode has 'n': {}, topic-list has 'x': {}",
+            has_browse, has_x
+        );
 
-        // Both should be present - defaults AND config file bindings
-        assert!(has_n, "Default 'n' binding should still exist");
+        // Both should be present - browse mode 'n' AND config file 'x'
+        assert!(has_browse, "Browse mode 'n' binding should exist");
         assert!(has_x, "Config file 'x' binding should exist");
     }
 }

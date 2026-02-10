@@ -18,17 +18,11 @@
 (bind "u" "go-to-profile")
 (bind "s" "go-to-node-select")
 
-(define-key "view-topic-list" "n" "next-topic")
-(define-key "view-topic-list" "p" "previous-topic")
 (define-key "view-topic-list" "t" "open-topic")
 (define-key "view-topic-list" "RET" "open-topic")
 (define-key "view-topic-list" "+" "load-more-topics")
 (define-key "view-topic-list" "o" "open-in-browser")
 (define-key "view-topic-list" "s" "select-node")
-(define-key "view-topic-list" "<" "first-item")
-(define-key "view-topic-list" ">" "last-item")
-(define-key "view-topic-list" "C-v" "page-down")
-(define-key "view-topic-list" "M-v" "page-up")
 
 (define-key "view-topic-detail" "t" "toggle-replies")
 (define-key "view-topic-detail" "o" "open-in-browser")
@@ -53,15 +47,9 @@
 (define-key "mode-link-selection" "s" "link-select-s")
 (define-key "mode-link-selection" "ESC" "exit-link-mode")
 
-(define-key "view-aggregate" "n" "next-item")
-(define-key "view-aggregate" "p" "previous-item")
 (define-key "view-aggregate" "Enter" "open-aggregate-item")
 (define-key "view-aggregate" "o" "open-in-browser")
 (define-key "view-aggregate" "g" "refresh-aggregate")
-(define-key "view-aggregate" "<" "first-item")
-(define-key "view-aggregate" ">" "last-item")
-(define-key "view-aggregate" "C-v" "page-down")
-(define-key "view-aggregate" "M-v" "page-up")
 
 (define-key "view-aggregate" "t" "switch-tab-tech")
 (define-key "view-aggregate" "c" "switch-tab-creative")

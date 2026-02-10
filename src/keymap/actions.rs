@@ -138,30 +138,57 @@ impl ActionRegistry {
             }
 
             NextItem | NextTopic => {
-                let at_last = app.topic_state.selected + 1 >= app.topic_state.topics.len();
-                if at_last && !app.topic_state.topics.is_empty() {
-                    let prev_page = app.node_state.page;
-                    app.node_state.page += 1;
-                    let prev_len = app.topic_state.topics.len();
-                    app.load_topics(client, true).await;
-                    if app.topic_state.topics.len() > prev_len {
-                        app.topic_state.selected = prev_len;
-                    } else {
-                        app.node_state.page = prev_page;
-                        app.ui_state.error = None;
-                        app.ui_state.status_message = "Already at the last topic".to_string();
+                match app.view {
+                    View::TopicList => {
+                        let at_last = app.topic_state.selected + 1 >= app.topic_state.topics.len();
+                        if at_last && !app.topic_state.topics.is_empty() {
+                            let prev_page = app.node_state.page;
+                            app.node_state.page += 1;
+                            let prev_len = app.topic_state.topics.len();
+                            app.load_topics(client, true).await;
+                            if app.topic_state.topics.len() > prev_len {
+                                app.topic_state.selected = prev_len;
+                            } else {
+                                app.node_state.page = prev_page;
+                                app.ui_state.error = None;
+                                app.ui_state.status_message =
+                                    "Already at the last topic".to_string();
+                            }
+                        } else {
+                            app.topic_state.next_topic();
+                        }
                     }
-                } else {
-                    app.topic_state.next_topic();
+                    View::Aggregate => {
+                        let at_last =
+                            app.aggregate_state.selected + 1 >= app.aggregate_state.items.len();
+                        if at_last && !app.aggregate_state.items.is_empty() {
+                            app.ui_state.status_message = "Already at the last item".to_string();
+                        } else {
+                            app.aggregate_state.next_item();
+                        }
+                    }
+                    _ => {}
                 }
                 Ok(false)
             }
 
             PreviousItem | PreviousTopic => {
-                if app.topic_state.selected == 0 {
-                    app.ui_state.status_message = "Already at the first topic".to_string();
-                } else {
-                    app.topic_state.previous_topic();
+                match app.view {
+                    View::TopicList => {
+                        if app.topic_state.selected == 0 {
+                            app.ui_state.status_message = "Already at the first topic".to_string();
+                        } else {
+                            app.topic_state.previous_topic();
+                        }
+                    }
+                    View::Aggregate => {
+                        if app.aggregate_state.selected == 0 {
+                            app.ui_state.status_message = "Already at the first item".to_string();
+                        } else {
+                            app.aggregate_state.previous_item();
+                        }
+                    }
+                    _ => {}
                 }
                 Ok(false)
             }

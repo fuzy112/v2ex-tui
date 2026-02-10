@@ -288,20 +288,7 @@ impl RuntimeConfig {
 
         // Topic List
         let mut topic_list = KeyMap::new("topic-list");
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('n'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "next-topic",
-        );
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('p'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "previous-topic",
-        );
+        // Note: n/p navigation is provided by "browse" mode
         topic_list.bind(
             crate::keymap::Key {
                 code: KeyCode::Char('t'),
@@ -337,34 +324,7 @@ impl RuntimeConfig {
             },
             "select-node",
         );
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('<'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "first-item",
-        );
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('>'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "last-item",
-        );
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('v'),
-                modifiers: KeyModifiers::CONTROL,
-            },
-            "page-down",
-        );
-        topic_list.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('v'),
-                modifiers: KeyModifiers::ALT,
-            },
-            "page-up",
-        );
+        // Note: </>/C-v/M-v navigation is provided by "browse" mode
         keymaps.insert(View::TopicList, topic_list);
 
         // Topic Detail
@@ -406,6 +366,52 @@ impl RuntimeConfig {
         use crossterm::event::{KeyCode, KeyModifiers};
 
         let mut keymaps = HashMap::new();
+
+        // Browse mode - shared navigation for list views (topic-list, aggregate)
+        let mut browse = KeyMap::new("browse");
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-item",
+        );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('p'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-item",
+        );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('<'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "first-item",
+        );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('>'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "last-item",
+        );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::CONTROL,
+            },
+            "page-down",
+        );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::ALT,
+            },
+            "page-up",
+        );
+        keymaps.insert("browse".to_string(), browse);
 
         // Replies mode
         let mut replies = KeyMap::new("replies");

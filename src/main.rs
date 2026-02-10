@@ -170,6 +170,9 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 } else if app.view == View::TopicDetail && app.topic_state.show_replies {
                     // Only activate replies mode when in topic detail view
                     vec!["replies".to_string()]
+                } else if app.view == View::TopicList || app.view == View::Aggregate {
+                    // Browse mode for list views (shared navigation)
+                    vec!["browse".to_string()]
                 } else {
                     vec![]
                 };
