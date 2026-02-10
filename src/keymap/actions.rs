@@ -493,7 +493,18 @@ impl ActionRegistry {
             }
 
             OpenAggregateItem => {
-                app.open_selected_aggregate_in_browser();
+                // Open selected aggregate item in topic detail view
+                if let Some(item) = app.aggregate_state.items.get(app.aggregate_state.selected) {
+                    if let Some(topic_id) = item.extract_topic_id() {
+                        app.topic_state.show_replies = false;
+                        app.load_topic_detail(client, topic_id).await;
+                        app.load_topic_replies(client, topic_id, false).await;
+                        app.navigate_to(View::TopicDetail);
+                    } else {
+                        // Fallback to opening in browser if we can't extract topic ID
+                        app.open_selected_aggregate_in_browser();
+                    }
+                }
                 Ok(false)
             }
 
