@@ -285,6 +285,16 @@ fn set_config_value(runtime: &Rc<RefCell<RuntimeConfig>>, key: &str, value: &Val
                 config.config.initial_view = parse_view(s)?;
             }
         }
+        "initial-tab" => {
+            if let Value::String(s) = value {
+                config.config.initial_tab = s.to_string();
+            }
+        }
+        "initial-node" => {
+            if let Value::String(s) = value {
+                config.config.initial_node = s.to_string();
+            }
+        }
         _ => return Err(anyhow::anyhow!("Unknown config key: {}", key)),
     }
 
@@ -611,5 +621,25 @@ mod tests {
         // Both should be present - browse mode 'n' AND config file 'x'
         assert!(has_browse, "Browse mode 'n' binding should exist");
         assert!(has_x, "Config file 'x' binding should exist");
+    }
+
+    #[test]
+    fn test_initial_tab_and_node_config() {
+        let mut engine = ConfigEngine::new();
+
+        // Load config with initial tab and node settings
+        engine
+            .load_string(
+                r#"
+            (set! "initial-tab" "creative")
+            (set! "initial-node" "rust")
+        "#,
+            )
+            .unwrap();
+
+        // Verify the config was applied
+        let config = engine.runtime_config.borrow();
+        assert_eq!(config.config.initial_tab, "creative");
+        assert_eq!(config.config.initial_node, "rust");
     }
 }

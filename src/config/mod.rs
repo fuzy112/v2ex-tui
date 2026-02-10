@@ -20,6 +20,8 @@ use crate::keymap::{KeyMap, KeyMapChain};
 pub struct Config {
     // General settings
     pub initial_view: View,
+    pub initial_tab: String,  // for aggregate view (e.g., "tech", "creative")
+    pub initial_node: String, // for topic-list view (e.g., "python", "programmer")
     pub topics_per_page: usize,
     pub replies_per_page: usize,
     pub auto_refresh_interval: u64, // seconds, 0 = disabled
@@ -92,6 +94,8 @@ impl Default for Config {
         Self {
             // General
             initial_view: View::TopicList,
+            initial_tab: "tech".to_string(),
+            initial_node: "python".to_string(),
             topics_per_page: 20,
             replies_per_page: 20,
             auto_refresh_interval: 0,

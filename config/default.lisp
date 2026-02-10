@@ -4,7 +4,16 @@
 (set! "key-sequence-timeout" 1000)
 (set! "theme" "dark")
 (set! "timestamp-format" "relative")
+
+; Initial view: "topic-list" or "aggregate"
 (set! "initial-view" "topic-list")
+
+; Initial settings (only used when initial-view matches)
+; For aggregate view: "tech", "creative", "play", "apple", "jobs", "deals", "city", "qna", "index"
+(set! "initial-tab" "tech")
+
+; For topic-list view: any valid node name (e.g., "python", "programmer", "share")
+(set! "initial-node" "python")
 
 (bind "C-c" "quit-immediate")
 (bind "q" "remove-from-history")

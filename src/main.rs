@@ -138,6 +138,10 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
         let config = &runtime_config.borrow().config;
         match config.initial_view {
             View::TopicList => {
+                // Switch to initial node if specified
+                if !config.initial_node.is_empty() {
+                    app.node_state.switch_node(&config.initial_node);
+                }
                 app.load_topics(&client, false).await;
                 app.navigate_to(View::TopicList);
             }
@@ -149,9 +153,17 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 app.load_profile(&client).await;
                 app.navigate_to(View::Profile);
             }
-            View::Aggregate | _ => {
+            View::Aggregate => {
+                // Switch to initial tab if specified
+                if !config.initial_tab.is_empty() {
+                    app.aggregate_state.switch_tab(&config.initial_tab);
+                }
                 app.load_aggregate(&client).await;
                 app.navigate_to(View::Aggregate);
+            }
+            _ => {
+                app.load_topics(&client, false).await;
+                app.navigate_to(View::TopicList);
             }
         }
     }
