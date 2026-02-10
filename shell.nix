@@ -1,7 +1,9 @@
-{ pkgs ? import <nixpkgs> {} }:
+{
+  pkgs ? import <nixpkgs> { },
+}:
 
 pkgs.mkShell {
-   buildInputs = with pkgs; [
+  buildInputs = with pkgs; [
     cargo
     rustc
     rustfmt
@@ -17,7 +19,7 @@ pkgs.mkShell {
   ];
 
   RUST_BACKTRACE = 1;
-  
+
   shellHook = ''
     echo "V2EX TUI Development Environment"
     echo "Rust version: $(rustc --version)"
