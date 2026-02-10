@@ -272,7 +272,13 @@ impl App {
                     if items_len == 0 {
                         return;
                     }
-                    let next_index = (current_index + 1) % items_len;
+                    if current_index + 1 >= items_len {
+                        // Already at last item
+                        self.ui_state.status_message =
+                            "Already at the last aggregated topic".to_string();
+                        return;
+                    }
+                    let next_index = current_index + 1;
                     if let Some(next_item) = self.aggregate_state.items.get(next_index) {
                         if let Some(topic_id) = next_item.extract_topic_id() {
                             self.topic_state.current = None;
@@ -290,7 +296,26 @@ impl App {
                     if topics_len == 0 {
                         return;
                     }
-                    let next_index = (current_index + 1) % topics_len;
+                    let at_last = current_index + 1 >= topics_len;
+                    let next_index = if at_last {
+                        // Try to load more topics
+                        let prev_page = self.node_state.page;
+                        self.node_state.page += 1;
+                        let prev_len = self.topic_state.topics.len();
+                        self.load_topics(client, true).await;
+                        if self.topic_state.topics.len() > prev_len {
+                            // New topics loaded, move to next
+                            prev_len
+                        } else {
+                            // No more topics to load, stay at current position and restore page
+                            self.node_state.page = prev_page;
+                            self.ui_state.error = None; // Clear the API error
+                            self.ui_state.status_message = "Already at the last topic".to_string();
+                            return;
+                        }
+                    } else {
+                        current_index + 1
+                    };
                     if let Some(next_topic) = self.topic_state.topics.get(next_index) {
                         let topic_id = next_topic.id;
                         self.topic_state.current = None;
@@ -316,11 +341,13 @@ impl App {
                     if items_len == 0 {
                         return;
                     }
-                    let prev_index = if current_index == 0 {
-                        items_len - 1
-                    } else {
-                        current_index - 1
-                    };
+                    if current_index == 0 {
+                        // Already at first item
+                        self.ui_state.status_message =
+                            "Already at the first aggregated topic".to_string();
+                        return;
+                    }
+                    let prev_index = current_index - 1;
                     if let Some(prev_item) = self.aggregate_state.items.get(prev_index) {
                         if let Some(topic_id) = prev_item.extract_topic_id() {
                             self.topic_state.current = None;
@@ -340,11 +367,12 @@ impl App {
                     if topics_len == 0 {
                         return;
                     }
-                    let prev_index = if current_index == 0 {
-                        topics_len - 1
-                    } else {
-                        current_index - 1
-                    };
+                    if current_index == 0 {
+                        // Already at first topic
+                        self.ui_state.status_message = "Already at the first topic".to_string();
+                        return;
+                    }
+                    let prev_index = current_index - 1;
                     if let Some(prev_topic) = self.topic_state.topics.get(prev_index) {
                         let topic_id = prev_topic.id;
                         self.topic_state.current = None;

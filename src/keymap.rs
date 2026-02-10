@@ -161,7 +161,25 @@ impl KeyMap for TopicListKeyMap {
                 Ok(false)
             }
             KeyCode::Char('n') => {
-                app.topic_state.next_topic();
+                let at_last = app.topic_state.selected + 1 >= app.topic_state.topics.len();
+                if at_last && !app.topic_state.topics.is_empty() {
+                    // At the end, try to load more topics
+                    let prev_page = app.node_state.page;
+                    app.node_state.page += 1;
+                    let prev_len = app.topic_state.topics.len();
+                    app.load_topics(client, true).await;
+                    if app.topic_state.topics.len() > prev_len {
+                        // New topics loaded, move to next
+                        app.topic_state.selected = prev_len;
+                    } else {
+                        // No more topics to load, stay at current position and restore page
+                        app.node_state.page = prev_page;
+                        app.ui_state.error = None; // Clear the API error
+                        app.ui_state.status_message = "Already at the last topic".to_string();
+                    }
+                } else {
+                    app.topic_state.next_topic();
+                }
                 Ok(false)
             }
             KeyCode::Down => {
@@ -174,7 +192,11 @@ impl KeyMap for TopicListKeyMap {
                 Ok(false)
             }
             KeyCode::Char('p') => {
-                app.topic_state.previous_topic();
+                if app.topic_state.selected == 0 {
+                    app.ui_state.status_message = "Already at the first topic".to_string();
+                } else {
+                    app.topic_state.previous_topic();
+                }
                 Ok(false)
             }
             KeyCode::Up => {
@@ -360,7 +382,37 @@ impl KeyMap for TopicDetailKeyMap {
             }
             KeyCode::Char('n') => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.next_reply(app.terminal_width);
+                    let at_last =
+                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
+                    let has_more = app.topic_state.replies.len()
+                        < app
+                            .topic_state
+                            .current
+                            .as_ref()
+                            .map(|t| t.replies as usize)
+                            .unwrap_or(0);
+                    if at_last && has_more {
+                        // At the end with more replies available, load more
+                        if let Some(ref topic) = app.topic_state.current {
+                            let prev_len = app.topic_state.replies.len();
+                            app.load_topic_replies(client, topic.id, true).await;
+                            if app.topic_state.replies.len() > prev_len {
+                                // New replies loaded, move to next
+                                app.topic_state.selected_reply = prev_len;
+                                app.topic_state.replies_list_state.select(Some(prev_len));
+                                app.topic_state.detect_links(app.terminal_width);
+                            } else {
+                                // No more replies to load, stay at current position
+                                app.ui_state.status_message =
+                                    "Already at the last reply".to_string();
+                            }
+                        }
+                    } else if at_last && !has_more {
+                        // At the last reply and no more to load
+                        app.ui_state.status_message = "Already at the last reply".to_string();
+                    } else {
+                        app.topic_state.next_reply(app.terminal_width);
+                    }
                 } else {
                     app.topic_state.scroll_down();
                 }
@@ -368,7 +420,37 @@ impl KeyMap for TopicDetailKeyMap {
             }
             KeyCode::Down => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.next_reply(app.terminal_width);
+                    let at_last =
+                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
+                    let has_more = app.topic_state.replies.len()
+                        < app
+                            .topic_state
+                            .current
+                            .as_ref()
+                            .map(|t| t.replies as usize)
+                            .unwrap_or(0);
+                    if at_last && has_more {
+                        // At the end with more replies available, load more
+                        if let Some(ref topic) = app.topic_state.current {
+                            let prev_len = app.topic_state.replies.len();
+                            app.load_topic_replies(client, topic.id, true).await;
+                            if app.topic_state.replies.len() > prev_len {
+                                // New replies loaded, move to next
+                                app.topic_state.selected_reply = prev_len;
+                                app.topic_state.replies_list_state.select(Some(prev_len));
+                                app.topic_state.detect_links(app.terminal_width);
+                            } else {
+                                // No more replies to load, stay at current position
+                                app.ui_state.status_message =
+                                    "Already at the last reply".to_string();
+                            }
+                        }
+                    } else if at_last && !has_more {
+                        // At the last reply and no more to load
+                        app.ui_state.status_message = "Already at the last reply".to_string();
+                    } else {
+                        app.topic_state.next_reply(app.terminal_width);
+                    }
                 } else {
                     app.topic_state.scroll_down();
                 }
@@ -377,7 +459,37 @@ impl KeyMap for TopicDetailKeyMap {
             KeyCode::Char(' ') => {
                 // SPC: Scroll down (same as n/Down)
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.next_reply(app.terminal_width);
+                    let at_last =
+                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
+                    let has_more = app.topic_state.replies.len()
+                        < app
+                            .topic_state
+                            .current
+                            .as_ref()
+                            .map(|t| t.replies as usize)
+                            .unwrap_or(0);
+                    if at_last && has_more {
+                        // At the end with more replies available, load more
+                        if let Some(ref topic) = app.topic_state.current {
+                            let prev_len = app.topic_state.replies.len();
+                            app.load_topic_replies(client, topic.id, true).await;
+                            if app.topic_state.replies.len() > prev_len {
+                                // New replies loaded, move to next
+                                app.topic_state.selected_reply = prev_len;
+                                app.topic_state.replies_list_state.select(Some(prev_len));
+                                app.topic_state.detect_links(app.terminal_width);
+                            } else {
+                                // No more replies to load, stay at current position
+                                app.ui_state.status_message =
+                                    "Already at the last reply".to_string();
+                            }
+                        }
+                    } else if at_last && !has_more {
+                        // At the last reply and no more to load
+                        app.ui_state.status_message = "Already at the last reply".to_string();
+                    } else {
+                        app.topic_state.next_reply(app.terminal_width);
+                    }
                 } else {
                     app.topic_state.scroll_down();
                 }
@@ -385,7 +497,11 @@ impl KeyMap for TopicDetailKeyMap {
             }
             KeyCode::Char('p') => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.previous_reply(app.terminal_width);
+                    if app.topic_state.selected_reply == 0 {
+                        app.ui_state.status_message = "Already at the first reply".to_string();
+                    } else {
+                        app.topic_state.previous_reply(app.terminal_width);
+                    }
                 } else {
                     app.topic_state.scroll_up();
                 }
@@ -393,7 +509,11 @@ impl KeyMap for TopicDetailKeyMap {
             }
             KeyCode::Up => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    app.topic_state.previous_reply(app.terminal_width);
+                    if app.topic_state.selected_reply == 0 {
+                        app.ui_state.status_message = "Already at the first reply".to_string();
+                    } else {
+                        app.topic_state.previous_reply(app.terminal_width);
+                    }
                 } else {
                     app.topic_state.scroll_up();
                 }
@@ -1044,24 +1164,49 @@ impl KeyMap for AggregateKeyMap {
                 Ok(false)
             }
             KeyCode::Char('n') => {
-                app.aggregate_state.next_item();
+                if app.aggregate_state.selected + 1 >= app.aggregate_state.items.len() {
+                    app.ui_state.status_message =
+                        "Already at the last aggregated topic".to_string();
+                } else {
+                    app.aggregate_state.next_item();
+                }
                 Ok(false)
             }
             KeyCode::Down => {
-                app.aggregate_state.next_item();
+                if app.aggregate_state.selected + 1 >= app.aggregate_state.items.len() {
+                    app.ui_state.status_message =
+                        "Already at the last aggregated topic".to_string();
+                } else {
+                    app.aggregate_state.next_item();
+                }
                 Ok(false)
             }
             KeyCode::Char(' ') => {
                 // SPC: Scroll down (same as n/Down)
-                app.aggregate_state.next_item();
+                if app.aggregate_state.selected + 1 >= app.aggregate_state.items.len() {
+                    app.ui_state.status_message =
+                        "Already at the last aggregated topic".to_string();
+                } else {
+                    app.aggregate_state.next_item();
+                }
                 Ok(false)
             }
             KeyCode::Char('p') => {
-                app.aggregate_state.previous_item();
+                if app.aggregate_state.selected == 0 {
+                    app.ui_state.status_message =
+                        "Already at the first aggregated topic".to_string();
+                } else {
+                    app.aggregate_state.previous_item();
+                }
                 Ok(false)
             }
             KeyCode::Up => {
-                app.aggregate_state.previous_item();
+                if app.aggregate_state.selected == 0 {
+                    app.ui_state.status_message =
+                        "Already at the first aggregated topic".to_string();
+                } else {
+                    app.aggregate_state.previous_item();
+                }
                 Ok(false)
             }
             KeyCode::Enter => {
