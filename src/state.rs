@@ -489,9 +489,12 @@ impl TopicState {
         };
 
         if let Some(content) = content_to_parse {
+            // Process HTML content: extract images and replace with markdown format
+            let processed_content = self.process_images_in_html(&content);
+
             // Convert HTML to text using html2text with the actual terminal width
             // This ensures link positions match the rendered text
-            let converted_text = html2text::from_read(content.as_bytes(), width);
+            let converted_text = html2text::from_read(processed_content.as_bytes(), width);
 
             // Store converted text for potential use in rendering
             self.parsed_content_cache = Some(converted_text.clone());
@@ -504,6 +507,44 @@ impl TopicState {
         for (i, link) in self.detected_links.iter().take(9).enumerate() {
             self.link_shortcuts.push(format!("{}: {}", i + 1, link.url));
         }
+    }
+
+    /// Process HTML content to extract images and replace them with markdown placeholders
+    /// Format: ![Image: filename](url)
+    fn process_images_in_html(&self, html: &str) -> String {
+        use regex::Regex;
+
+        // Regex to match <img> tags with src attribute
+        // Captures the src URL
+        let img_regex = match Regex::new(r#"<img[^>]+src=["']([^"']+)["'][^>]*>"#) {
+            Ok(re) => re,
+            Err(_) => return html.to_string(),
+        };
+
+        img_regex
+            .replace_all(html, |caps: &regex::Captures| {
+                let url = &caps[1];
+                format!("![Image]({})", url)
+            })
+            .to_string()
+    }
+
+    /// Extract filename from URL for display purposes
+    #[allow(dead_code)] // Kept for potential future use
+    fn extract_filename_from_url(&self, url: &str) -> String {
+        // Remove query parameters and fragment
+        let url_without_query = url.split('?').next().unwrap_or(url);
+        let url_without_fragment = url_without_query
+            .split('#')
+            .next()
+            .unwrap_or(url_without_query);
+
+        // Get the last path component
+        url_without_fragment
+            .split('/')
+            .next_back()
+            .unwrap_or("image")
+            .to_string()
     }
 
     fn assign_shortcut(index: usize) -> String {
@@ -521,10 +562,18 @@ impl TopicState {
     fn extract_links_from_converted_text(&mut self, converted_text: &str) {
         use regex::Regex;
 
-        // Simple URL regex pattern - match URLs in converted text
-        // html2text may convert HTML links to [text](url) format, but URLs may also appear as plain text
+        // Pattern to match markdown-style images: ![Image](url)
+        // We extract the URL from within the parentheses
+        let image_pattern = r#"!\[Image\]\((https?://[^\s\)]+)\)"#;
+        let image_re = match Regex::new(image_pattern) {
+            Ok(re) => re,
+            Err(_) => return,
+        };
+
+        // Pattern to match plain URLs (but not inside markdown image syntax)
+        // This excludes URLs that are already captured by the image pattern
         let url_pattern = "https?://[^\\s<>\"'\\)\\]]+";
-        let re = match Regex::new(url_pattern) {
+        let url_re = match Regex::new(url_pattern) {
             Ok(regex) => regex,
             Err(_) => return, // If regex fails, skip link detection
         };
@@ -532,19 +581,42 @@ impl TopicState {
         // Clear existing links
         self.detected_links.clear();
 
-        // Find all matches with their byte positions
-        let mut matches: Vec<(String, std::ops::Range<usize>)> = Vec::new();
-        for capture in re.captures_iter(converted_text) {
-            if let Some(matched) = capture.get(0) {
-                let url = matched.as_str().to_string();
-                let byte_range = matched.start()..matched.end();
-                matches.push((url, byte_range));
+        // Collect all matches with their positions
+        // First, find image patterns (these take precedence)
+        let mut all_matches: Vec<(String, std::ops::Range<usize>, bool)> = Vec::new();
+
+        for cap in image_re.captures_iter(converted_text) {
+            if let Some(url_match) = cap.get(1) {
+                if let Some(full_match) = cap.get(0) {
+                    let url = url_match.as_str().to_string();
+                    let range = full_match.start()..full_match.end();
+                    all_matches.push((url, range, true)); // true = is image
+                }
             }
         }
 
-        // Store byte positions (not character positions) for accurate string slicing
-        // URLs are typically ASCII, so byte positions work correctly
-        for (index, (url, byte_range)) in matches.into_iter().enumerate() {
+        // Then find plain URLs, but skip those inside image patterns
+        for cap in url_re.captures_iter(converted_text) {
+            if let Some(matched) = cap.get(0) {
+                let url = matched.as_str().to_string();
+                let range = matched.start()..matched.end();
+
+                // Check if this URL is already part of an image pattern
+                let is_part_of_image = all_matches.iter().any(|(_, img_range, _)| {
+                    range.start >= img_range.start && range.end <= img_range.end
+                });
+
+                if !is_part_of_image {
+                    all_matches.push((url, range, false)); // false = plain URL
+                }
+            }
+        }
+
+        // Sort all matches by position to maintain original order
+        all_matches.sort_by_key(|(_, range, _)| range.start);
+
+        // Create DetectedLink objects from all matches
+        for (index, (url, range, _is_image)) in all_matches.into_iter().enumerate() {
             let shortcut = Self::assign_shortcut(index);
             let display_text = if url.len() > 50 {
                 format!("{}...", &url[..47])
@@ -555,7 +627,7 @@ impl TopicState {
             self.detected_links.push(DetectedLink {
                 url,
                 shortcut,
-                text_range: byte_range, // Store byte range for string slicing
+                text_range: range,
                 display_text,
             });
         }

@@ -34,6 +34,37 @@
 2. **Enhanced error handling** - Better user feedback and error recovery
 3. **Performance optimization** - Caching, async improvements, and reduced redraws
 4. **Additional features** - Search, bookmarking, offline reading
+5. **Image display** - See section below
+
+## 🖼️ **Image Display Enhancement**
+
+**Current Implementation (2026-02-10):**
+- Images in topic/reply content are extracted and replaced with markdown-style placeholders: `![Image](url)`
+- Image placeholders appear inline in the text where images would be
+- When in link selection mode (press `f`), images are labeled and selectable like regular links
+- Selecting an image label opens the image URL in the default browser
+- Format: `![Image](https://example.com/image.jpg)`
+
+**Future Enhancement: Inline Image Rendering**
+- [ ] Add `ratatui-image` and `image` crate dependencies
+- [ ] Detect terminal graphics protocol support (Sixel, Kitty, iTerm2)
+- [ ] Parse and download images asynchronously using existing `reqwest` client
+- [ ] Display actual images inline in supported terminals (Kitty, iTerm2, Foot, Wezterm)
+- [ ] Fallback to placeholder approach in unsupported terminals (Alacritty, Konsole, Warp)
+- [ ] Handle image resizing, cropping, and scaling to fit terminal width
+- [ ] Cache downloaded images to disk to avoid re-downloading
+- [ ] Add configuration option to enable/disable inline images
+- [ ] Test terminal compatibility matrix:
+  - Sixel: xterm, foot, mlterm, Black Box
+  - Kitty: Kitty, Ghostty
+  - iTerm2: iTerm2, Wezterm, Rio, Bobcat
+  - Unsupported: Alacritty, Konsole, Warp (keep placeholders)
+
+**Technical Notes:**
+- Use `Picker::from_query_stdio()` from ratatui-image to detect terminal capabilities
+- Async image loading to avoid blocking UI (use existing tokio runtime)
+- Consider memory usage with large images - implement size limits
+- Handle network errors gracefully (fallback to placeholder if download fails)
 
 ## 🐛 **Code TODOs**
 
