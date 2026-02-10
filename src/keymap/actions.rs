@@ -45,6 +45,11 @@ pub enum Action {
     NextReply,
     PreviousReply,
 
+    // Aggregate actions
+    SwitchAggregateTab(String),
+    OpenAggregateItem,
+    RefreshAggregate,
+
     // Custom action with name
     Custom(String),
 }
@@ -179,13 +184,36 @@ impl ActionRegistry {
             }
 
             FirstItem => {
-                app.topic_state.selected = 0;
+                match app.view {
+                    View::TopicList | View::TopicDetail => {
+                        app.topic_state.selected = 0;
+                    }
+                    View::Aggregate => {
+                        app.aggregate_state.selected = 0;
+                    }
+                    _ => {}
+                }
                 Ok(false)
             }
 
             LastItem => {
-                if !app.topic_state.topics.is_empty() {
-                    app.topic_state.selected = app.topic_state.topics.len() - 1;
+                match app.view {
+                    View::TopicList => {
+                        if !app.topic_state.topics.is_empty() {
+                            app.topic_state.selected = app.topic_state.topics.len() - 1;
+                        }
+                    }
+                    View::TopicDetail => {
+                        if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                            app.topic_state.selected_reply = app.topic_state.replies.len() - 1;
+                        }
+                    }
+                    View::Aggregate => {
+                        if !app.aggregate_state.items.is_empty() {
+                            app.aggregate_state.selected = app.aggregate_state.items.len() - 1;
+                        }
+                    }
+                    _ => {}
                 }
                 Ok(false)
             }
@@ -384,6 +412,13 @@ impl ActionRegistry {
                             app.notification_state.selected = 0;
                         }
                     }
+                    View::Aggregate => {
+                        if app.aggregate_state.selected >= 5 {
+                            app.aggregate_state.selected -= 5;
+                        } else {
+                            app.aggregate_state.selected = 0;
+                        }
+                    }
                     _ => {}
                 }
                 Ok(false)
@@ -412,8 +447,31 @@ impl ActionRegistry {
                                 (app.notification_state.selected + 5).min(len - 1);
                         }
                     }
+                    View::Aggregate => {
+                        let len = app.aggregate_state.items.len();
+                        if len > 0 {
+                            app.aggregate_state.selected =
+                                (app.aggregate_state.selected + 5).min(len - 1);
+                        }
+                    }
                     _ => {}
                 }
+                Ok(false)
+            }
+
+            // Aggregate actions
+            SwitchAggregateTab(tab) => {
+                app.switch_aggregate_tab(client, tab).await;
+                Ok(false)
+            }
+
+            OpenAggregateItem => {
+                app.open_selected_aggregate_in_browser();
+                Ok(false)
+            }
+
+            RefreshAggregate => {
+                app.load_aggregate(client).await;
                 Ok(false)
             }
 
@@ -472,6 +530,11 @@ impl ActionRegistry {
         self.register("exit-link-mode", ExitLinkMode);
         self.register("open-in-browser", OpenInBrowser);
         self.register("select-node", SelectNode);
+
+        // Aggregate view
+        self.register("open-aggregate-item", OpenAggregateItem);
+        self.register("refresh-aggregate", RefreshAggregate);
+        // Note: SwitchAggregateTab is registered dynamically via Custom action
     }
 }
 
