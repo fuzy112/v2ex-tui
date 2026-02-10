@@ -47,7 +47,7 @@
 (define-key "mode-link-selection" "s" "link-select-s")
 (define-key "mode-link-selection" "ESC" "exit-link-mode")
 
-(define-key "view-aggregate" "Enter" "open-aggregate-item")
+(define-key "view-aggregate" "RET" "open-aggregate-item")
 (define-key "view-aggregate" "o" "open-in-browser")
 (define-key "view-aggregate" "g" "refresh-aggregate")
 
