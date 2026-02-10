@@ -605,9 +605,14 @@ impl App {
     }
 
     /// Remove current view from history and return the view to navigate to (q/Esc)
-    /// Returns None if history is empty after removal (should exit app)
+    /// Returns None if history is empty or no previous view exists (should exit app)
     pub fn remove_current_from_history(&mut self) -> Option<View> {
         if self.view_history.is_empty() {
+            return None;
+        }
+
+        // If at the first position, there's no previous view to go back to
+        if self.history_position == 0 {
             return None;
         }
 
@@ -618,10 +623,8 @@ impl App {
             return None;
         }
 
-        // Go to previous item in history
-        if self.history_position > 0 {
-            self.history_position -= 1;
-        }
+        // Go to previous item in history (left)
+        self.history_position -= 1;
 
         self.view = self.view_history[self.history_position];
         self.ui_state.error = None;
