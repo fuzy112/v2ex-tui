@@ -196,6 +196,7 @@ pub struct ApiResponse<T> {
     pub result: Option<T>,
 }
 
+#[derive(Clone)]
 pub struct V2exClient {
     token: String,
     client: reqwest::Client,

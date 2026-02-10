@@ -15,7 +15,7 @@ use crate::views::profile::ProfileView;
 use crate::views::topic_detail::TopicDetailView;
 use crate::views::topic_list::TopicListView;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum View {
     TopicList,
     TopicDetail,
