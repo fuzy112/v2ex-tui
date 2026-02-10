@@ -513,4 +513,96 @@ mod tests {
             _ => panic!("Expected next-reply action to be bound to j in replies mode"),
         }
     }
+
+    #[test]
+    fn test_keymap_chain_persists_across_builds() {
+        let mut engine = ConfigEngine::new();
+
+        // Load config that defines keys in topic-list view
+        engine
+            .load_string(
+                r#"
+            (define-key "view-topic-list" "x" "open-topic")
+        "#,
+            )
+            .unwrap();
+
+        // Build chain for topic-list view
+        let chain1 = {
+            let config = engine.runtime_config.borrow();
+            config.build_keymap_chain(View::TopicList, &[])
+        };
+
+        // Verify key is bound
+        let key = parse_key("x").unwrap();
+        assert!(
+            chain1.lookup(&key).is_some(),
+            "Key should be bound in first chain"
+        );
+
+        // Build chain for different view
+        let _chain2 = {
+            let config = engine.runtime_config.borrow();
+            config.build_keymap_chain(View::TopicDetail, &[])
+        };
+
+        // Build chain for topic-list view again
+        let chain3 = {
+            let config = engine.runtime_config.borrow();
+            config.build_keymap_chain(View::TopicList, &[])
+        };
+
+        // Verify key is still bound
+        assert!(
+            chain3.lookup(&key).is_some(),
+            "Key should still be bound after switching views"
+        );
+    }
+
+    #[test]
+    fn test_config_file_and_defaults_combined() {
+        let mut engine = ConfigEngine::new();
+
+        // Initially, the default keymap should have 'n' bound to 'next-topic' from RuntimeConfig::new()
+        let config = engine.runtime_config.borrow();
+        let key_n = parse_key("n").unwrap();
+        let has_default_binding = config
+            .view_keymaps
+            .get(&View::TopicList)
+            .and_then(|km| km.lookup(&key_n))
+            .is_some();
+        drop(config);
+
+        println!(
+            "Has default 'n' binding before config load: {}",
+            has_default_binding
+        );
+
+        // Now load config that also binds a key
+        engine
+            .load_string(
+                r#"
+            (define-key "view-topic-list" "x" "open-topic")
+        "#,
+            )
+            .unwrap();
+
+        // Check both bindings exist
+        let config = engine.runtime_config.borrow();
+        let key_x = parse_key("x").unwrap();
+
+        let topic_list_km = config
+            .view_keymaps
+            .get(&View::TopicList)
+            .expect("Topic list keymap should exist");
+
+        let has_n = topic_list_km.lookup(&key_n).is_some();
+        let has_x = topic_list_km.lookup(&key_x).is_some();
+
+        println!("After config load - has 'n': {}, has 'x': {}", has_n, has_x);
+
+        // Both should be present - defaults AND config file bindings
+        assert!(has_n, "Default 'n' binding should still exist");
+        assert!(has_x, "Config file 'x' binding should exist");
+    }
 }

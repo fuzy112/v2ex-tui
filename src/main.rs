@@ -167,7 +167,8 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 // Build keymap chain for current state
                 let active_modes: Vec<String> = if app.topic_state.link_input_state.is_active {
                     vec!["link-selection".to_string()]
-                } else if app.topic_state.show_replies {
+                } else if app.view == View::TopicDetail && app.topic_state.show_replies {
+                    // Only activate replies mode when in topic detail view
                     vec!["replies".to_string()]
                 } else {
                     vec![]
