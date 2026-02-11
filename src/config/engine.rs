@@ -131,6 +131,26 @@ impl ConfigEngine {
                 }
             });
         scope.add_named_value("define-key", define_key_fn);
+
+        // Create tab-key function value for configuring tab key mappings
+        let runtime = self.runtime_config.clone();
+        let tab_key_fn = Value::new_foreign_fn(scope.add_name("tab-key"), move |_ctx, args| {
+            if args.len() != 2 {
+                return Err(ketos::Error::ExecError(ketos::exec::ExecError::expected(
+                    "2 arguments",
+                    &args.len().into(),
+                )));
+            }
+
+            let key_char = value_to_string(&args[0]).unwrap_or_default();
+            let tab_name = value_to_string(&args[1]).unwrap_or_default();
+
+            match set_tab_key_mapping(&runtime, &key_char, &tab_name) {
+                Ok(_) => Ok(Value::Unit),
+                Err(e) => Ok(Value::String(RcString::from(e.to_string()))),
+            }
+        });
+        scope.add_named_value("tab-key", tab_key_fn);
     }
 
     /// Get a reference to the runtime config
@@ -231,6 +251,29 @@ fn define_key(
         }
         _ => Err(anyhow::anyhow!("Unknown keymap: {}", keymap_name)),
     }
+}
+
+/// Set a tab key mapping
+fn set_tab_key_mapping(
+    runtime: &Rc<RefCell<RuntimeConfig>>,
+    key_char: &str,
+    tab_name: &str,
+) -> Result<()> {
+    if key_char.len() != 1 {
+        return Err(anyhow::anyhow!(
+            "Tab key must be a single character, got: {}",
+            key_char
+        ));
+    }
+
+    let key = key_char.chars().next().unwrap();
+    let mut config = runtime.borrow_mut();
+    config
+        .config
+        .tab_key_mappings
+        .insert(key, tab_name.to_string());
+
+    Ok(())
 }
 
 /// Set a configuration value
@@ -641,5 +684,41 @@ mod tests {
         let config = engine.runtime_config.borrow();
         assert_eq!(config.config.initial_tab, "creative");
         assert_eq!(config.config.initial_node, "rust");
+    }
+
+    #[test]
+    fn test_tab_key_mapping_config() {
+        let mut engine = ConfigEngine::new();
+
+        // Load config with custom tab key mappings
+        engine
+            .load_string(
+                r#"
+            (tab-key "1" "tech")
+            (tab-key "2" "creative")
+            (tab-key "3" "jobs")
+        "#,
+            )
+            .unwrap();
+
+        // Verify the mappings were applied
+        let config = engine.runtime_config.borrow();
+        assert_eq!(
+            config.config.tab_key_mappings.get(&'1'),
+            Some(&"tech".to_string())
+        );
+        assert_eq!(
+            config.config.tab_key_mappings.get(&'2'),
+            Some(&"creative".to_string())
+        );
+        assert_eq!(
+            config.config.tab_key_mappings.get(&'3'),
+            Some(&"jobs".to_string())
+        );
+        // Default mappings should still exist
+        assert_eq!(
+            config.config.tab_key_mappings.get(&'t'),
+            Some(&"tech".to_string())
+        );
     }
 }

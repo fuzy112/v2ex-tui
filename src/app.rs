@@ -42,6 +42,10 @@ pub struct App {
     // History navigation
     pub view_history: Vec<View>,
     pub history_position: usize,
+    // Last key pressed (for actions that need to know triggering key)
+    pub last_key: Option<crate::keymap::Key>,
+    // Tab key mappings for aggregate view (key -> tab name)
+    pub tab_key_mappings: std::collections::HashMap<char, String>,
 }
 
 impl App {
@@ -60,6 +64,20 @@ impl App {
             terminal_height: 24, // Default height
             view_history: vec![initial_view],
             history_position: 0,
+            last_key: None,
+            tab_key_mappings: {
+                let mut map = std::collections::HashMap::new();
+                map.insert('t', "tech".to_string());
+                map.insert('c', "creative".to_string());
+                map.insert('p', "play".to_string());
+                map.insert('a', "apple".to_string());
+                map.insert('j', "jobs".to_string());
+                map.insert('d', "deals".to_string());
+                map.insert('y', "city".to_string());
+                map.insert('q', "qna".to_string());
+                map.insert('i', "index".to_string());
+                map
+            },
         }
     }
 

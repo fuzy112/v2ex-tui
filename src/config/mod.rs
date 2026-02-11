@@ -48,6 +48,9 @@ pub struct Config {
     pub max_image_width: u32,
     pub max_image_height: u32,
     pub image_cache_dir: PathBuf,
+
+    // Aggregate tab key mappings (key -> tab name)
+    pub tab_key_mappings: HashMap<char, String>,
 }
 
 /// Theme presets
@@ -144,6 +147,21 @@ impl Default for Config {
             max_image_width: 800,
             max_image_height: 600,
             image_cache_dir: PathBuf::from("~/.cache/v2ex/images"),
+
+            // Tab key mappings (default home row keys)
+            tab_key_mappings: {
+                let mut map = HashMap::new();
+                map.insert('t', "tech".to_string());
+                map.insert('c', "creative".to_string());
+                map.insert('p', "play".to_string());
+                map.insert('a', "apple".to_string());
+                map.insert('j', "jobs".to_string());
+                map.insert('d', "deals".to_string());
+                map.insert('y', "city".to_string());
+                map.insert('q', "qna".to_string());
+                map.insert('i', "index".to_string());
+                map
+            },
         }
     }
 }

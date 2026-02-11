@@ -6,11 +6,11 @@
 (set! "timestamp-format" "relative")
 
 ; Initial view: "topic-list" or "aggregate"
-(set! "initial-view" "topic-list")
+(set! "initial-view" "aggregate")
 
 ; Initial settings (only used when initial-view matches)
 ; For aggregate view: "tech", "creative", "play", "apple", "jobs", "deals", "city", "qna", "index"
-(set! "initial-tab" "tech")
+(set! "initial-tab" "index")
 
 ; For topic-list view: any valid node name (e.g., "python", "programmer", "share")
 (set! "initial-node" "python")
@@ -60,12 +60,26 @@
 (define-key "view-aggregate" "o" "open-in-browser")
 (define-key "view-aggregate" "g" "refresh-aggregate")
 
-(define-key "view-aggregate" "t" "switch-tab-tech")
-(define-key "view-aggregate" "c" "switch-tab-creative")
-(define-key "view-aggregate" "k" "switch-tab-play")
-(define-key "view-aggregate" "a" "switch-tab-apple")
-(define-key "view-aggregate" "j" "switch-tab-jobs")
-(define-key "view-aggregate" "d" "switch-tab-deals")
-(define-key "view-aggregate" "y" "switch-tab-city")
-(define-key "view-aggregate" "z" "switch-tab-qna")
-(define-key "view-aggregate" "i" "switch-tab-index")
+; Tab switching - single action reads the triggering key
+; Configure which key maps to which tab (default shown below)
+; Available tabs: tech, creative, play, apple, jobs, deals, city, qna, index
+(tab-key "t" "tech")
+(tab-key "c" "creative")
+(tab-key "k" "play")
+(tab-key "a" "apple")
+(tab-key "j" "jobs")
+(tab-key "d" "deals")
+(tab-key "y" "city")
+(tab-key "z" "qna")
+(tab-key "i" "index")
+
+; Bind keys to the switch-tab action
+(define-key "view-aggregate" "t" "switch-tab")
+(define-key "view-aggregate" "c" "switch-tab")
+(define-key "view-aggregate" "k" "switch-tab")
+(define-key "view-aggregate" "a" "switch-tab")
+(define-key "view-aggregate" "j" "switch-tab")
+(define-key "view-aggregate" "d" "switch-tab")
+(define-key "view-aggregate" "y" "switch-tab")
+(define-key "view-aggregate" "z" "switch-tab")
+(define-key "view-aggregate" "i" "switch-tab")

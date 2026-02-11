@@ -133,6 +133,12 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
     // Get runtime config for building keymap chains
     let runtime_config = config_engine.runtime_config();
 
+    // Copy tab key mappings from config to app
+    {
+        let config = &runtime_config.borrow().config;
+        app.tab_key_mappings = config.tab_key_mappings.clone();
+    }
+
     // Load initial view based on config
     {
         let config = &runtime_config.borrow().config;
@@ -175,6 +181,9 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
             if key.kind == KeyEventKind::Press {
                 // Convert to our Key type
                 let key: keymap::Key = key.into();
+
+                // Store the key for actions that need to know the triggering key
+                app.last_key = Some(key.clone());
 
                 // Build keymap chain for current state
                 let active_modes: Vec<String> = if app.topic_state.link_input_state.is_active {

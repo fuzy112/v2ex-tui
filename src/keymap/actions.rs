@@ -46,7 +46,7 @@ pub enum Action {
     PreviousReply,
 
     // Aggregate actions
-    SwitchAggregateTab(String),
+    SwitchTab,
     OpenAggregateItem,
     RefreshAggregate,
 
@@ -487,8 +487,25 @@ impl ActionRegistry {
             }
 
             // Aggregate actions
-            SwitchAggregateTab(tab) => {
-                app.switch_aggregate_tab(client, tab).await;
+            SwitchTab => {
+                // Read the triggering key to determine which tab to switch to
+                if let Some(ref key) = app.last_key {
+                    use crossterm::event::KeyCode;
+                    if let KeyCode::Char(key_char) = key.code {
+                        // Look up the tab name from configured mappings
+                        let tab_name = app.tab_key_mappings.get(&key_char).cloned();
+                        if let Some(tab) = tab_name {
+                            app.switch_aggregate_tab(client, &tab).await;
+                        } else {
+                            app.ui_state.status_message =
+                                format!("No tab configured for key: {}", key_char);
+                        }
+                    } else {
+                        app.ui_state.status_message = format!("Invalid tab key: {:?}", key.code);
+                    }
+                } else {
+                    app.ui_state.status_message = "No key pressed".to_string();
+                }
                 Ok(false)
             }
 
@@ -519,16 +536,7 @@ impl ActionRegistry {
                 Ok(false)
             }
 
-            Custom(name) => {
-                // Handle special custom action formats
-                if name.starts_with("switch-tab:") {
-                    let tab = &name[11..]; // Strip "switch-tab:" prefix
-                    app.switch_aggregate_tab(client, tab).await;
-                    Ok(false)
-                } else {
-                    Err(anyhow::anyhow!("Custom action '{}' not implemented", name))
-                }
-            }
+            Custom(name) => Err(anyhow::anyhow!("Custom action '{}' not implemented", name)),
 
             _ => Err(anyhow::anyhow!("Action not implemented")),
         }
@@ -581,21 +589,7 @@ impl ActionRegistry {
         // Aggregate view
         self.register("open-aggregate-item", OpenAggregateItem);
         self.register("refresh-aggregate", RefreshAggregate);
-        // Note: SwitchAggregateTab is registered dynamically via Custom action
-
-        // Aggregate tab switches (individual actions for each tab)
-        self.register("switch-tab-tech", Custom("switch-tab:tech".to_string()));
-        self.register(
-            "switch-tab-creative",
-            Custom("switch-tab:creative".to_string()),
-        );
-        self.register("switch-tab-play", Custom("switch-tab:play".to_string()));
-        self.register("switch-tab-apple", Custom("switch-tab:apple".to_string()));
-        self.register("switch-tab-jobs", Custom("switch-tab:jobs".to_string()));
-        self.register("switch-tab-deals", Custom("switch-tab:deals".to_string()));
-        self.register("switch-tab-city", Custom("switch-tab:city".to_string()));
-        self.register("switch-tab-qna", Custom("switch-tab:qna".to_string()));
-        self.register("switch-tab-index", Custom("switch-tab:index".to_string()));
+        self.register("switch-tab", SwitchTab);
     }
 }
 
