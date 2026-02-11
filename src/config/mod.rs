@@ -412,6 +412,21 @@ impl RuntimeConfig {
             },
             "load-more-replies",
         );
+        // Cross-topic navigation (uppercase N/P)
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('N'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-topic",
+        );
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('P'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-topic",
+        );
         keymaps.insert(View::TopicDetail, topic_detail);
 
         keymaps

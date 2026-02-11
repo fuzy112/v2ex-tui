@@ -59,6 +59,10 @@
 (define-key "view-topic-detail" "w" "copy-to-clipboard")
 (define-key "view-topic-detail" "+" "load-more-replies")
 
+; Cross-topic navigation (uppercase N/P)
+(define-key "view-topic-detail" "N" "next-topic")
+(define-key "view-topic-detail" "P" "previous-topic")
+
 ; Space for scrolling down
 (define-key "view-topic-detail" "SPC" "scroll-down")
 
