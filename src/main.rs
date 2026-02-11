@@ -187,6 +187,22 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 // Store the key for actions that need to know the triggering key
                 app.last_key = Some(key.clone());
 
+                // Special handling: Node selection completion mode - insert printable characters
+                if app.view == View::NodeSelect && app.node_state.is_completion_mode {
+                    use crossterm::event::KeyCode;
+                    if let KeyCode::Char(ch) = key.code {
+                        // Insert character into completion input
+                        app.node_state.insert_char(ch);
+                        app.node_state.update_suggestions();
+                        continue;
+                    } else if key.code == KeyCode::Backspace {
+                        // Handle backspace to delete character
+                        app.node_state.delete_char();
+                        app.node_state.update_suggestions();
+                        continue;
+                    }
+                }
+
                 // Build keymap chain for current state
                 let active_modes: Vec<String> = if app.topic_state.link_input_state.is_active {
                     vec!["link-selection".to_string()]
