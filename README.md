@@ -39,6 +39,69 @@ cargo run --release
 nix-shell --run "cargo run --release"
 ```
 
+## 配置
+
+v2ex-tui 使用 Lisp 格式的配置文件，首次运行时会自动生成默认配置到 `~/.config/v2ex/config.lisp`。
+
+### 配置示例
+
+```lisp
+; 基本设置
+(set! "topics-per-page" 20)
+(set! "replies-per-page" 20)
+(set! "theme" "dark")
+(set! "timestamp-format" "relative")
+
+; 初始视图设置
+(set! "initial-view" "aggregate")
+(set! "initial-tab" "tech")
+(set! "initial-node" "python")
+
+; 标签页键位映射 (聚合视图)
+; 配置哪个键对应哪个标签
+(tab-key "t" "tech")
+(tab-key "c" "creative")
+(tab-key "p" "play")
+(tab-key "a" "apple")
+(tab-key "j" "jobs")
+(tab-key "d" "deals")
+(tab-key "y" "city")
+(tab-key "q" "qna")
+(tab-key "i" "index")
+
+; 将键绑定到 switch-tab 动作
+(define-key "view-aggregate" "t" "switch-tab")
+(define-key "view-aggregate" "c" "switch-tab")
+; ... 其他键
+
+; 节点快速切换 (主题列表视图)
+; 数字键 1-9 对应 favorite_nodes 列表中的第 n 个节点
+(define-key "view-topic-list" "1" "switch-node")
+(define-key "view-topic-list" "2" "switch-node")
+; ... 其他数字键
+
+; 链接选择键位映射
+(link-key "a" 1)
+(link-key "o" 2)
+(link-key "e" 3)
+; ... 其他键
+
+; 将键绑定到 link-select 动作
+(define-key "mode-link-selection" "a" "link-select")
+(define-key "mode-link-selection" "o" "link-select")
+; ... 其他键
+```
+
+### 配置函数说明
+
+- **`(set! key value)`** - 设置配置项，如 topics-per-page, theme 等
+- **`(bind key action)`** - 绑定全局快捷键
+- **`(define-key keymap key action)`** - 在指定 keymap 中绑定键
+  - keymap 可以是: `global`, `view-*` (如 view-topic-list), `mode-*` (如 mode-replies)
+- **`(tab-key key tab)`** - 配置聚合视图的标签页快捷键映射
+- **`(node-key key node)`** - 配置节点快速切换映射 (已弃用，现使用 favorite_nodes)
+- **`(link-key key index)`** - 配置链接选择模式的键位映射
+
 ## 快捷键
 
 ### 全局导航
