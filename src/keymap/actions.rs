@@ -554,8 +554,8 @@ impl ActionRegistry {
             }
 
             ReloadConfig => {
-                // TODO: Implement config reload
-                app.ui_state.status_message = "Config reload not yet implemented".to_string();
+                // TODO: Implement config reload - requires passing config_engine to actions
+                app.ui_state.status_message = "Config reload requires restart (not yet implemented)".to_string();
                 Ok(false)
             }
 
