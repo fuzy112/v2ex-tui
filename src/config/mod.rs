@@ -51,6 +51,10 @@ pub struct Config {
 
     // Aggregate tab key mappings (key -> tab name)
     pub tab_key_mappings: HashMap<char, String>,
+    // Node key mappings for quick node switching (key -> node name)
+    pub node_key_mappings: HashMap<char, String>,
+    // Link key mappings for link selection mode (key -> link index)
+    pub link_key_mappings: HashMap<char, usize>,
 }
 
 /// Theme presets
@@ -160,6 +164,35 @@ impl Default for Config {
                 map.insert('y', "city".to_string());
                 map.insert('q', "qna".to_string());
                 map.insert('i', "index".to_string());
+                map
+            },
+            // Node key mappings (1-9 keys)
+            node_key_mappings: {
+                let mut map = HashMap::new();
+                map.insert('1', "python".to_string());
+                map.insert('2', "programmer".to_string());
+                map.insert('3', "share".to_string());
+                map.insert('4', "create".to_string());
+                map.insert('5', "jobs".to_string());
+                map.insert('6', "go".to_string());
+                map.insert('7', "rust".to_string());
+                map.insert('8', "javascript".to_string());
+                map.insert('9', "linux".to_string());
+                map
+            },
+            // Link key mappings (home row keys)
+            link_key_mappings: {
+                let mut map = HashMap::new();
+                map.insert('a', 1);
+                map.insert('o', 2);
+                map.insert('e', 3);
+                map.insert('u', 4);
+                map.insert('i', 5);
+                map.insert('d', 6);
+                map.insert('h', 7);
+                map.insert('t', 8);
+                map.insert('n', 9);
+                map.insert('s', 10);
                 map
             },
         }
@@ -554,6 +587,45 @@ impl RuntimeConfig {
             "exit-link-mode",
         );
         keymaps.insert("link-selection".to_string(), link_selection);
+
+        // Node selection mode
+        let mut node_select = KeyMap::new("node-select");
+        node_select.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-item",
+        );
+        node_select.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('p'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-item",
+        );
+        node_select.bind(
+            crate::keymap::Key {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::empty(),
+            },
+            "select-current-node",
+        );
+        node_select.bind(
+            crate::keymap::Key {
+                code: KeyCode::Tab,
+                modifiers: KeyModifiers::empty(),
+            },
+            "toggle-completion-mode",
+        );
+        node_select.bind(
+            crate::keymap::Key {
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::empty(),
+            },
+            "remove-from-history",
+        );
+        keymaps.insert("node-select".to_string(), node_select);
 
         keymaps
     }

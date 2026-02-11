@@ -151,6 +151,50 @@ impl ConfigEngine {
             }
         });
         scope.add_named_value("tab-key", tab_key_fn);
+
+        // Create node-key function value for configuring node key mappings
+        let runtime = self.runtime_config.clone();
+        let node_key_fn = Value::new_foreign_fn(scope.add_name("node-key"), move |_ctx, args| {
+            if args.len() != 2 {
+                return Err(ketos::Error::ExecError(ketos::exec::ExecError::expected(
+                    "2 arguments",
+                    &args.len().into(),
+                )));
+            }
+
+            let key_char = value_to_string(&args[0]).unwrap_or_default();
+            let node_name = value_to_string(&args[1]).unwrap_or_default();
+
+            match set_node_key_mapping(&runtime, &key_char, &node_name) {
+                Ok(_) => Ok(Value::Unit),
+                Err(e) => Ok(Value::String(RcString::from(e.to_string()))),
+            }
+        });
+        scope.add_named_value("node-key", node_key_fn);
+
+        // Create link-key function value for configuring link key mappings
+        let runtime = self.runtime_config.clone();
+        let link_key_fn = Value::new_foreign_fn(scope.add_name("link-key"), move |_ctx, args| {
+            if args.len() != 2 {
+                return Err(ketos::Error::ExecError(ketos::exec::ExecError::expected(
+                    "2 arguments",
+                    &args.len().into(),
+                )));
+            }
+
+            let key_char = value_to_string(&args[0]).unwrap_or_default();
+            let index = if let Value::Integer(n) = &args[1] {
+                n.to_usize().unwrap_or(1)
+            } else {
+                1
+            };
+
+            match set_link_key_mapping(&runtime, &key_char, index) {
+                Ok(_) => Ok(Value::Unit),
+                Err(e) => Ok(Value::String(RcString::from(e.to_string()))),
+            }
+        });
+        scope.add_named_value("link-key", link_key_fn);
     }
 
     /// Get a reference to the runtime config
@@ -272,6 +316,49 @@ fn set_tab_key_mapping(
         .config
         .tab_key_mappings
         .insert(key, tab_name.to_string());
+
+    Ok(())
+}
+
+/// Set a node key mapping
+fn set_node_key_mapping(
+    runtime: &Rc<RefCell<RuntimeConfig>>,
+    key_char: &str,
+    node_name: &str,
+) -> Result<()> {
+    if key_char.len() != 1 {
+        return Err(anyhow::anyhow!(
+            "Node key must be a single character, got: {}",
+            key_char
+        ));
+    }
+
+    let key = key_char.chars().next().unwrap();
+    let mut config = runtime.borrow_mut();
+    config
+        .config
+        .node_key_mappings
+        .insert(key, node_name.to_string());
+
+    Ok(())
+}
+
+/// Set a link key mapping
+fn set_link_key_mapping(
+    runtime: &Rc<RefCell<RuntimeConfig>>,
+    key_char: &str,
+    index: usize,
+) -> Result<()> {
+    if key_char.len() != 1 {
+        return Err(anyhow::anyhow!(
+            "Link key must be a single character, got: {}",
+            key_char
+        ));
+    }
+
+    let key = key_char.chars().next().unwrap();
+    let mut config = runtime.borrow_mut();
+    config.config.link_key_mappings.insert(key, index);
 
     Ok(())
 }

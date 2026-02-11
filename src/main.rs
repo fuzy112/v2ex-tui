@@ -133,10 +133,13 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
     // Get runtime config for building keymap chains
     let runtime_config = config_engine.runtime_config();
 
-    // Copy tab key mappings from config to app
+    // Copy key mappings from config to app
     {
         let config = &runtime_config.borrow().config;
         app.tab_key_mappings = config.tab_key_mappings.clone();
+        app.node_key_mappings = config.node_key_mappings.clone();
+        app.link_key_mappings = config.link_key_mappings.clone();
+        app.favorite_nodes = config.favorite_nodes.clone();
     }
 
     // Load initial view based on config
@@ -194,6 +197,9 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 } else if app.view == View::TopicList || app.view == View::Aggregate {
                     // Browse mode for list views (shared navigation)
                     vec!["browse".to_string()]
+                } else if app.view == View::NodeSelect {
+                    // Node selection mode for navigating and selecting nodes
+                    vec!["node-select".to_string()]
                 } else {
                     vec![]
                 };

@@ -36,8 +36,10 @@ pub enum Action {
     ExitLinkMode,
     OpenInBrowser,
     SelectNode,
-    SwitchNode(String),
-    LinkSelect(String),
+    SwitchNode,
+    LinkSelect,
+    SelectCurrentNode,
+    ToggleCompletionMode,
 
     // Topic actions
     OpenTopic,
@@ -380,63 +382,54 @@ impl ActionRegistry {
                 Ok(false)
             }
 
-            SwitchNode(node) => {
-                app.node_state.switch_node(node);
-                app.load_topics(client, false).await;
-                Ok(false)
-            }
-
-            LinkSelect(shortcut) => {
-                // Handle link selection by shortcut
-                // Parse shortcut letter to index (a=1, o=2, e=3, etc.)
-                let shortcut_chars = ['a', 'o', 'e', 'u', 'i', 'd', 'h', 't', 'n', 's'];
-                let index = shortcut_chars
-                    .iter()
-                    .position(|&c| c == shortcut.chars().next().unwrap_or('a'))
-                    .map(|i| i + 1)
-                    .unwrap_or(1);
-
-                if let Some(url) = app.topic_state.get_link_by_shortcut(index) {
-                    let url = url.clone();
-                    match crate::browser::Browser::open_url(&url) {
-                        Ok(result) => {
-                            app.ui_state.status_message = format!("Opening link: {}", result);
+            SwitchNode => {
+                // Read the triggering key to determine which node to switch to
+                if let Some(ref key) = app.last_key {
+                    use crossterm::event::KeyCode;
+                    if let KeyCode::Char(key_char) = key.code {
+                        // Parse digit and use as index into favorite_nodes (1-based -> 0-based)
+                        if let Some(digit) = key_char.to_digit(10) {
+                            let index = (digit as usize).saturating_sub(1);
+                            if let Some((node_name, _)) = app.favorite_nodes.get(index) {
+                                app.node_state.switch_node(node_name);
+                                app.load_topics(client, false).await;
+                            } else {
+                                app.ui_state.status_message =
+                                    format!("No favorite node at position {}", digit);
+                            }
+                        } else {
+                            app.ui_state.status_message = format!(
+                                "Switch-node only works with digit keys, not: {}",
+                                key_char
+                            );
                         }
-                        Err(e) => {
-                            app.ui_state.error = Some(format!("Failed to open link: {}", e));
-                        }
+                    } else {
+                        app.ui_state.status_message = format!("Invalid node key: {:?}", key.code);
                     }
-                    app.topic_state.exit_link_selection_mode();
+                } else {
+                    app.ui_state.status_message = "No key pressed".to_string();
                 }
                 Ok(false)
             }
 
-            CopyToClipboard => {
-                // Copy selected reply or topic content to clipboard
-                match app.view {
-                    View::TopicDetail => {
-                        if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                            app.copy_selected_reply_to_clipboard();
-                        } else if app.topic_state.current.is_some() {
-                            let topic = app.topic_state.current.clone().unwrap();
-                            app.copy_topic_content_to_clipboard(&topic);
-                        }
-                    }
-                    _ => {
-                        app.ui_state.status_message = "Nothing to copy in this view".to_string();
-                    }
+            SelectCurrentNode => {
+                // Select the currently highlighted node and switch to it
+                if let Some((node_name, _)) =
+                    app.node_state.favorite_nodes.get(app.node_state.selected)
+                {
+                    let node = node_name.clone();
+                    app.node_state.switch_node(&node);
+                    app.load_topics(client, false).await;
+                    app.navigate_to(View::TopicList);
+                } else {
+                    app.ui_state.status_message = "No node selected".to_string();
                 }
                 Ok(false)
             }
 
-            ScrollDown => {
-                // Scroll down by one page
-                match app.view {
-                    View::TopicDetail => {
-                        app.topic_state.scroll_down();
-                    }
-                    _ => {}
-                }
+            ToggleCompletionMode => {
+                // Toggle between completion mode and normal selection mode
+                app.node_state.toggle_completion_mode();
                 Ok(false)
             }
 
@@ -616,30 +609,11 @@ impl ActionRegistry {
         self.register("exit-link-mode", ExitLinkMode);
         self.register("open-in-browser", OpenInBrowser);
         self.register("select-node", SelectNode);
+        self.register("switch-node", SwitchNode);
+        self.register("link-select", LinkSelect);
         self.register("copy-to-clipboard", CopyToClipboard);
-
-        // Link selection shortcuts
-        self.register("link-select-a", LinkSelect("a".to_string()));
-        self.register("link-select-o", LinkSelect("o".to_string()));
-        self.register("link-select-e", LinkSelect("e".to_string()));
-        self.register("link-select-u", LinkSelect("u".to_string()));
-        self.register("link-select-i", LinkSelect("i".to_string()));
-        self.register("link-select-d", LinkSelect("d".to_string()));
-        self.register("link-select-h", LinkSelect("h".to_string()));
-        self.register("link-select-t", LinkSelect("t".to_string()));
-        self.register("link-select-n", LinkSelect("n".to_string()));
-        self.register("link-select-s", LinkSelect("s".to_string()));
-
-        // Quick node switching (1-9)
-        self.register("switch-node-1", SwitchNode("python".to_string()));
-        self.register("switch-node-2", SwitchNode("programmer".to_string()));
-        self.register("switch-node-3", SwitchNode("share".to_string()));
-        self.register("switch-node-4", SwitchNode("create".to_string()));
-        self.register("switch-node-5", SwitchNode("jobs".to_string()));
-        self.register("switch-node-6", SwitchNode("go".to_string()));
-        self.register("switch-node-7", SwitchNode("rust".to_string()));
-        self.register("switch-node-8", SwitchNode("javascript".to_string()));
-        self.register("switch-node-9", SwitchNode("linux".to_string()));
+        self.register("select-current-node", SelectCurrentNode);
+        self.register("toggle-completion-mode", ToggleCompletionMode);
 
         // Aggregate view
         self.register("open-aggregate-item", OpenAggregateItem);

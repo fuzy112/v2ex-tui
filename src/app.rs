@@ -46,6 +46,12 @@ pub struct App {
     pub last_key: Option<crate::keymap::Key>,
     // Tab key mappings for aggregate view (key -> tab name)
     pub tab_key_mappings: std::collections::HashMap<char, String>,
+    // Node key mappings for quick node switching (key -> node name)
+    pub node_key_mappings: std::collections::HashMap<char, String>,
+    // Link key mappings for link selection mode (key -> link index)
+    pub link_key_mappings: std::collections::HashMap<char, usize>,
+    // Favorite nodes list for quick switching (index -> node name)
+    pub favorite_nodes: Vec<(String, String)>,
 }
 
 impl App {
@@ -78,6 +84,45 @@ impl App {
                 map.insert('i', "index".to_string());
                 map
             },
+            node_key_mappings: {
+                let mut map = std::collections::HashMap::new();
+                map.insert('1', "python".to_string());
+                map.insert('2', "programmer".to_string());
+                map.insert('3', "share".to_string());
+                map.insert('4', "create".to_string());
+                map.insert('5', "jobs".to_string());
+                map.insert('6', "go".to_string());
+                map.insert('7', "rust".to_string());
+                map.insert('8', "javascript".to_string());
+                map.insert('9', "linux".to_string());
+                map
+            },
+            link_key_mappings: {
+                let mut map = std::collections::HashMap::new();
+                map.insert('a', 1);
+                map.insert('o', 2);
+                map.insert('e', 3);
+                map.insert('u', 4);
+                map.insert('i', 5);
+                map.insert('d', 6);
+                map.insert('h', 7);
+                map.insert('t', 8);
+                map.insert('n', 9);
+                map.insert('s', 10);
+                map
+            },
+            // Default favorite nodes for quick switching (1-9)
+            favorite_nodes: vec![
+                ("python".to_string(), "Python".to_string()),
+                ("programmer".to_string(), "程序员".to_string()),
+                ("share".to_string(), "分享发现".to_string()),
+                ("create".to_string(), "分享创造".to_string()),
+                ("jobs".to_string(), "酷工作".to_string()),
+                ("go".to_string(), "Go 编程语言".to_string()),
+                ("rust".to_string(), "Rust 编程语言".to_string()),
+                ("javascript".to_string(), "JavaScript".to_string()),
+                ("linux".to_string(), "Linux".to_string()),
+            ],
         }
     }
 
