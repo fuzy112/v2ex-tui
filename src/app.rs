@@ -290,6 +290,7 @@ impl App {
     }
 
     // Helper to find current topic index based on previous view
+    #[allow(dead_code)] // Reserved for cross-topic navigation feature
     fn find_current_topic_index_in_previous_view(&self) -> Option<(usize, View)> {
         let current_topic_id = self.topic_state.current.as_ref()?.id;
 
@@ -326,6 +327,7 @@ impl App {
     }
 
     // Topic navigation in detail view
+    #[allow(dead_code)] // Reserved for cross-topic navigation feature
     pub async fn switch_to_next_topic(&mut self, client: &V2exClient) {
         if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
         {
@@ -395,6 +397,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)] // Reserved for cross-topic navigation feature
     pub async fn switch_to_previous_topic(&mut self, client: &V2exClient) {
         if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
         {
@@ -485,6 +488,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)] // Clipboard feature - available for key binding
     pub fn copy_selected_reply_to_clipboard(&mut self) {
         if let Some(reply) = self
             .topic_state
@@ -515,6 +519,7 @@ impl App {
         }
     }
 
+    #[allow(dead_code)] // Clipboard feature - available for key binding
     pub fn copy_topic_content_to_clipboard(&mut self, topic: &crate::api::Topic) {
         let content = topic
             .content_rendered

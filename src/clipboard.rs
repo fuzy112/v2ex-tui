@@ -10,6 +10,7 @@ use std::io::{stdout, Write};
 ///
 /// The sequence format is: ESC ] 52 ; c ; <base64-data> BEL
 /// Where 'c' is the clipboard selection (c = clipboard, p = primary, s = secondary)
+#[allow(dead_code)] // Clipboard feature - available for key binding
 pub fn copy_to_clipboard(text: &str) -> Result<()> {
     if !is_osc52_supported() {
         return Err(anyhow::anyhow!(
@@ -39,6 +40,7 @@ pub fn copy_to_clipboard(text: &str) -> Result<()> {
 ///
 /// This is a best-effort check. We look for common terminal emulators
 /// that are known to support OSC 52.
+#[allow(dead_code)] // Clipboard feature - available for key binding
 pub fn is_osc52_supported() -> bool {
     // Check for known supporting terminals via environment variables
     let term_program = std::env::var("TERM_PROGRAM").unwrap_or_default();

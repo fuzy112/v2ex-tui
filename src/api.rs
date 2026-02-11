@@ -121,6 +121,7 @@ impl NotificationPayload {
         }
     }
 
+    #[allow(dead_code)] // API completeness - may be used in future
     pub fn extract_reply_id(&self) -> Option<i64> {
         match self {
             NotificationPayload::String(s) => {
@@ -159,6 +160,7 @@ impl Notification {
     }
 
     /// Extract reply ID from notification
+    #[allow(dead_code)] // API completeness - may be used in future
     pub fn extract_reply_id(&self) -> Option<i64> {
         self.payload.as_ref().and_then(|p| p.extract_reply_id())
     }
