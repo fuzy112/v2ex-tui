@@ -34,6 +34,17 @@
 (define-key "mode-node-select" "TAB" "toggle-completion-mode")
 (define-key "mode-node-select" "ESC" "remove-from-history")
 
+; Quick node selection with digit keys (uses favorite_nodes list)
+(define-key "mode-node-select" "1" "switch-node")
+(define-key "mode-node-select" "2" "switch-node")
+(define-key "mode-node-select" "3" "switch-node")
+(define-key "mode-node-select" "4" "switch-node")
+(define-key "mode-node-select" "5" "switch-node")
+(define-key "mode-node-select" "6" "switch-node")
+(define-key "mode-node-select" "7" "switch-node")
+(define-key "mode-node-select" "8" "switch-node")
+(define-key "mode-node-select" "9" "switch-node")
+
 (define-key "view-topic-list" "t" "open-topic")
 (define-key "view-topic-list" "RET" "open-topic")
 (define-key "view-topic-list" "+" "load-more-topics")

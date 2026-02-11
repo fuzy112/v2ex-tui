@@ -647,6 +647,16 @@ impl RuntimeConfig {
             },
             "remove-from-history",
         );
+        // Quick node selection with digit keys 1-9
+        for digit in '1'..='9' {
+            node_select.bind(
+                crate::keymap::Key {
+                    code: KeyCode::Char(digit),
+                    modifiers: KeyModifiers::empty(),
+                },
+                "switch-node",
+            );
+        }
         keymaps.insert("node-select".to_string(), node_select);
 
         keymaps
