@@ -5,9 +5,6 @@ pub mod handler;
 pub mod registry;
 
 // Re-export core types from the private module
-pub use actions::{Action, ActionRegistry};
-pub use handler::EventHandler;
-pub use registry::KeyMapRegistry;
 
 // Core keymap types
 use std::collections::HashMap;

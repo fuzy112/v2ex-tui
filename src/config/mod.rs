@@ -6,7 +6,7 @@ pub mod engine;
 pub mod loader;
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use directories::BaseDirs;
@@ -702,4 +702,4 @@ impl Default for RuntimeConfig {
 
 // Re-export public types
 pub use engine::ConfigEngine;
-pub use loader::{init_config, load_config_from, reload_config};
+pub use loader::init_config;

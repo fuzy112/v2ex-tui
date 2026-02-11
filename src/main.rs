@@ -16,7 +16,6 @@ mod views;
 
 use api::V2exClient;
 use app::{App, View};
-use keymap::EventHandler;
 use terminal::TerminalManager;
 
 fn print_help() {
@@ -123,7 +122,7 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
     let mut app = App::new();
 
     // Initialize configuration
-    let (mut config_engine, message) = config::init_config()?;
+    let (config_engine, message) = config::init_config()?;
 
     // Show initialization message if any
     if let Some(msg) = message {
