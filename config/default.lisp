@@ -33,10 +33,25 @@
 (define-key "view-topic-list" "o" "open-in-browser")
 (define-key "view-topic-list" "s" "select-node")
 
+; Quick node switching (1-9)
+(define-key "view-topic-list" "1" "switch-node-1")
+(define-key "view-topic-list" "2" "switch-node-2")
+(define-key "view-topic-list" "3" "switch-node-3")
+(define-key "view-topic-list" "4" "switch-node-4")
+(define-key "view-topic-list" "5" "switch-node-5")
+(define-key "view-topic-list" "6" "switch-node-6")
+(define-key "view-topic-list" "7" "switch-node-7")
+(define-key "view-topic-list" "8" "switch-node-8")
+(define-key "view-topic-list" "9" "switch-node-9")
+
 (define-key "view-topic-detail" "t" "toggle-replies")
 (define-key "view-topic-detail" "o" "open-in-browser")
 (define-key "view-topic-detail" "f" "enter-link-mode")
+(define-key "view-topic-detail" "w" "copy-to-clipboard")
 (define-key "view-topic-detail" "+" "load-more-replies")
+
+; Space for scrolling down
+(define-key "view-topic-detail" "SPC" "scroll-down")
 
 (define-key "mode-replies" "n" "next-reply")
 (define-key "mode-replies" "p" "previous-reply")

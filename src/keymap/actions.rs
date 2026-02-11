@@ -25,6 +25,7 @@ pub enum Action {
     LastItem,
     PageUp,
     PageDown,
+    ScrollDown,
 
     // View-specific
     LoadMoreTopics,
@@ -410,6 +411,35 @@ impl ActionRegistry {
                 Ok(false)
             }
 
+            CopyToClipboard => {
+                // Copy selected reply or topic content to clipboard
+                match app.view {
+                    View::TopicDetail => {
+                        if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                            app.copy_selected_reply_to_clipboard();
+                        } else if app.topic_state.current.is_some() {
+                            let topic = app.topic_state.current.clone().unwrap();
+                            app.copy_topic_content_to_clipboard(&topic);
+                        }
+                    }
+                    _ => {
+                        app.ui_state.status_message = "Nothing to copy in this view".to_string();
+                    }
+                }
+                Ok(false)
+            }
+
+            ScrollDown => {
+                // Scroll down by one page
+                match app.view {
+                    View::TopicDetail => {
+                        app.topic_state.scroll_down();
+                    }
+                    _ => {}
+                }
+                Ok(false)
+            }
+
             PageUp => {
                 match app.view {
                     View::TopicList => {
@@ -562,6 +592,7 @@ impl ActionRegistry {
         self.register("last-item", LastItem);
         self.register("page-up", PageUp);
         self.register("page-down", PageDown);
+        self.register("scroll-down", ScrollDown);
 
         // View navigation
         self.register("go-to-aggregate", NavigateTo(View::Aggregate));
@@ -585,6 +616,30 @@ impl ActionRegistry {
         self.register("exit-link-mode", ExitLinkMode);
         self.register("open-in-browser", OpenInBrowser);
         self.register("select-node", SelectNode);
+        self.register("copy-to-clipboard", CopyToClipboard);
+
+        // Link selection shortcuts
+        self.register("link-select-a", LinkSelect("a".to_string()));
+        self.register("link-select-o", LinkSelect("o".to_string()));
+        self.register("link-select-e", LinkSelect("e".to_string()));
+        self.register("link-select-u", LinkSelect("u".to_string()));
+        self.register("link-select-i", LinkSelect("i".to_string()));
+        self.register("link-select-d", LinkSelect("d".to_string()));
+        self.register("link-select-h", LinkSelect("h".to_string()));
+        self.register("link-select-t", LinkSelect("t".to_string()));
+        self.register("link-select-n", LinkSelect("n".to_string()));
+        self.register("link-select-s", LinkSelect("s".to_string()));
+
+        // Quick node switching (1-9)
+        self.register("switch-node-1", SwitchNode("python".to_string()));
+        self.register("switch-node-2", SwitchNode("programmer".to_string()));
+        self.register("switch-node-3", SwitchNode("share".to_string()));
+        self.register("switch-node-4", SwitchNode("create".to_string()));
+        self.register("switch-node-5", SwitchNode("jobs".to_string()));
+        self.register("switch-node-6", SwitchNode("go".to_string()));
+        self.register("switch-node-7", SwitchNode("rust".to_string()));
+        self.register("switch-node-8", SwitchNode("javascript".to_string()));
+        self.register("switch-node-9", SwitchNode("linux".to_string()));
 
         // Aggregate view
         self.register("open-aggregate-item", OpenAggregateItem);
