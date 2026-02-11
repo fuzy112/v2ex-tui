@@ -466,6 +466,13 @@ impl RuntimeConfig {
             },
             "page-up",
         );
+        browse.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char(' '),
+                modifiers: KeyModifiers::empty(),
+            },
+            "scroll-down",
+        );
         keymaps.insert("browse".to_string(), browse);
 
         // Replies mode
