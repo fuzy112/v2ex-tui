@@ -527,6 +527,21 @@ impl RuntimeConfig {
             },
             "last-item",
         );
+        // Cross-topic navigation in replies mode
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('N'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-topic",
+        );
+        replies.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('P'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-topic",
+        );
         keymaps.insert("replies".to_string(), replies);
 
         // Link selection mode

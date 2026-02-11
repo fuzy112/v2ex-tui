@@ -79,6 +79,8 @@
 
 (define-key "mode-replies" "n" "next-reply")
 (define-key "mode-replies" "p" "previous-reply")
+(define-key "mode-replies" "N" "next-topic")
+(define-key "mode-replies" "P" "previous-topic")
 (define-key "mode-replies" "+" "load-more-replies")
 (define-key "mode-replies" "<" "first-item")
 (define-key "mode-replies" ">" "last-item")

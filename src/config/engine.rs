@@ -808,4 +808,46 @@ mod tests {
             Some(&"tech".to_string())
         );
     }
+
+    #[test]
+    fn test_topic_detail_navigation_keys() {
+        let mut engine = ConfigEngine::new();
+
+        // Load config with N/P keys for topic detail navigation
+        engine
+            .load_string(
+                r#"
+            (define-key "view-topic-detail" "N" "next-topic")
+            (define-key "view-topic-detail" "P" "previous-topic")
+        "#,
+            )
+            .unwrap();
+
+        // Build keymap chain for topic detail view
+        let chain = {
+            let config = engine.runtime_config.borrow();
+            config.build_keymap_chain(View::TopicDetail, &[])
+        };
+
+        // Verify N key is bound to next-topic
+        let key_n = parse_key("N").unwrap();
+        match chain.lookup(&key_n) {
+            Some(crate::keymap::Binding::Action(action)) => {
+                assert_eq!(action, "next-topic", "N key should be bound to next-topic");
+            }
+            _ => panic!("N key should be bound to next-topic action in topic detail view"),
+        }
+
+        // Verify P key is bound to previous-topic
+        let key_p = parse_key("P").unwrap();
+        match chain.lookup(&key_p) {
+            Some(crate::keymap::Binding::Action(action)) => {
+                assert_eq!(
+                    action, "previous-topic",
+                    "P key should be bound to previous-topic"
+                );
+            }
+            _ => panic!("P key should be bound to previous-topic action in topic detail view"),
+        }
+    }
 }
