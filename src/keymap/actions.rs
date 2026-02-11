@@ -170,6 +170,10 @@ impl ActionRegistry {
                             app.aggregate_state.next_item();
                         }
                     }
+                    View::TopicDetail => {
+                        // Switch to next topic in topic detail view
+                        app.switch_to_next_topic(client).await;
+                    }
                     _ => {}
                 }
                 Ok(false)
@@ -190,6 +194,10 @@ impl ActionRegistry {
                         } else {
                             app.aggregate_state.previous_item();
                         }
+                    }
+                    View::TopicDetail => {
+                        // Switch to previous topic in topic detail view
+                        app.switch_to_previous_topic(client).await;
                     }
                     _ => {}
                 }
