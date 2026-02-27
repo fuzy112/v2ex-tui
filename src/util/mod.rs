@@ -1,5 +1,31 @@
 use chrono::{Local, TimeZone};
 
+/// Timestamp format preference
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TimestampFormat {
+    #[default]
+    Relative,
+    Absolute,
+}
+
+/// Global custom absolute time format (set from config)
+use std::sync::OnceLock;
+
+static ABSOLUTE_TIME_FORMAT: OnceLock<String> = OnceLock::new();
+
+/// Set the custom absolute time format string
+pub fn set_absolute_time_format(format: String) {
+    let _ = ABSOLUTE_TIME_FORMAT.set(format);
+}
+
+/// Format a Unix timestamp based on the format preference
+pub fn format_timestamp(timestamp: i64, format: TimestampFormat) -> String {
+    match format {
+        TimestampFormat::Relative => format_relative_time(timestamp),
+        TimestampFormat::Absolute => format_absolute_time(timestamp),
+    }
+}
+
 /// Format a Unix timestamp as relative time (e.g., "2 hours ago")
 pub fn format_relative_time(timestamp: i64) -> String {
     let now = Local::now();
@@ -33,13 +59,22 @@ pub fn format_relative_time(timestamp: i64) -> String {
     }
 }
 
+/// Default absolute time format
+const DEFAULT_ABSOLUTE_FORMAT: &str = "%Y-%m-%d %H:%M";
+
 /// Format a Unix timestamp as absolute time (e.g., "2026-02-09 14:30")
-#[allow(dead_code)] // Reserved for future configuration option
+/// Uses custom format string if set via config, otherwise uses default
 pub fn format_absolute_time(timestamp: i64) -> String {
     let dt = Local.timestamp_opt(timestamp, 0).single();
 
     match dt {
-        Some(dt) => dt.format("%Y-%m-%d %H:%M").to_string(),
+        Some(dt) => {
+            let format_str = ABSOLUTE_TIME_FORMAT
+                .get()
+                .map(|s| s.as_str())
+                .unwrap_or(DEFAULT_ABSOLUTE_FORMAT);
+            dt.format(format_str).to_string()
+        }
         None => "unknown".to_string(),
     }
 }

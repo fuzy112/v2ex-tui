@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::api::RssItem;
 use crate::ui::Theme;
-use crate::util::format_relative_time;
+use crate::util::{format_timestamp, TimestampFormat};
 
 pub struct AggregateView;
 
@@ -17,6 +17,7 @@ impl AggregateView {
         Self
     }
 
+    #[allow(clippy::too_many_arguments)] // View render functions need multiple parameters
     pub fn render(
         &self,
         frame: &mut Frame,
@@ -25,6 +26,7 @@ impl AggregateView {
         selected: usize,
         current_tab: &str,
         theme: &Theme,
+        timestamp_format: TimestampFormat,
     ) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -95,7 +97,7 @@ impl AggregateView {
                 let title = &item.title;
                 let time_str = item
                     .timestamp
-                    .map(format_relative_time)
+                    .map(|ts| format_timestamp(ts, timestamp_format))
                     .unwrap_or_else(|| item.date.clone());
 
                 let line = Line::from(vec![

@@ -6,7 +6,12 @@ use ratatui::{
     Frame,
 };
 
-use crate::{api::Topic, state::DetectedLink, ui::Theme, util::format_relative_time};
+use crate::{
+    api::Topic,
+    state::DetectedLink,
+    ui::Theme,
+    util::{format_timestamp, TimestampFormat},
+};
 
 pub struct TopicDetailView;
 
@@ -26,6 +31,7 @@ impl TopicDetailView {
         is_link_mode_active: bool,
         parsed_content: Option<&str>,
         theme: &Theme,
+        timestamp_format: TimestampFormat,
     ) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -36,7 +42,7 @@ impl TopicDetailView {
         let author_name = topic.author_name();
         let node_name = topic.node_title();
 
-        let time_str = format_relative_time(topic.created);
+        let time_str = format_timestamp(topic.created, timestamp_format);
 
         let header_lines = vec![
             Line::from(vec![
@@ -226,6 +232,7 @@ impl TopicDetailView {
         replies: &[crate::api::Reply],
         list_state: &mut ListState,
         theme: &Theme,
+        timestamp_format: TimestampFormat,
     ) {
         self.render(
             frame,
@@ -236,6 +243,7 @@ impl TopicDetailView {
             is_link_mode_active,
             parsed_content,
             theme,
+            timestamp_format,
         );
         self.render_replies(
             frame,
@@ -247,6 +255,7 @@ impl TopicDetailView {
             is_link_mode_active,
             parsed_content,
             theme,
+            timestamp_format,
         );
     }
 
@@ -262,6 +271,7 @@ impl TopicDetailView {
         _is_link_mode_active: bool,
         _parsed_content: Option<&str>,
         theme: &Theme,
+        timestamp_format: TimestampFormat,
     ) {
         let total_replies = topic.replies as usize;
         let loaded_replies = replies.len();
@@ -304,7 +314,7 @@ impl TopicDetailView {
                     .as_ref()
                     .map(|m| m.username.as_str())
                     .unwrap_or("Unknown");
-                let reply_time = format_relative_time(reply.created);
+                let reply_time = format_timestamp(reply.created, timestamp_format);
 
                 let header_line = Line::from(vec![
                     Span::styled(

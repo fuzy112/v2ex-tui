@@ -58,6 +58,7 @@ pub enum Action {
 }
 
 /// Registry mapping action names to Action variants
+#[derive(Clone, Debug)]
 pub struct ActionRegistry {
     actions: HashMap<String, Action>,
 }
@@ -563,7 +564,8 @@ impl ActionRegistry {
 
             ReloadConfig => {
                 // TODO: Implement config reload - requires passing config_engine to actions
-                app.ui_state.status_message = "Config reload requires restart (not yet implemented)".to_string();
+                app.ui_state.status_message =
+                    "Config reload requires restart (not yet implemented)".to_string();
                 Ok(false)
             }
 

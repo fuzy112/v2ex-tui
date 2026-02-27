@@ -26,26 +26,57 @@ impl BrowserResult {
     }
 }
 
+/// Browser command configuration - can be set to use a custom browser
+use std::sync::OnceLock;
+
+static BROWSER_COMMAND: OnceLock<Vec<String>> = OnceLock::new();
+
+/// Set the browser command to use for opening URLs
+pub fn set_browser_command(cmd: Vec<String>) {
+    let _ = BROWSER_COMMAND.set(cmd);
+}
+
 /// Centralized browser operations
 pub struct Browser;
 
 impl Browser {
-    /// Open URL in default browser with consistent error handling
+    /// Open URL in browser with consistent error handling
+    /// Uses custom browser command if set, otherwise uses system default
     pub fn open_url(url: impl AsRef<str>) -> Result<BrowserResult> {
         let url_str = url.as_ref().to_string();
         let url_for_thread = url_str.clone();
 
         // Spawn a thread to open browser without blocking the main event loop
         std::thread::spawn(move || {
-            match webbrowser::open(&url_for_thread) {
-                Ok(_) => {
-                    // Log success but don't block
-                    // In a more sophisticated implementation, we could use a channel
-                    // to report success/failure back to the main thread
+            // Check if custom browser command is configured
+            if let Some(cmd) = BROWSER_COMMAND.get() {
+                // Use custom browser command
+                let mut command = std::process::Command::new(&cmd[0]);
+                for arg in &cmd[1..] {
+                    command.arg(arg);
                 }
-                Err(e) => {
-                    // Log error but don't block
-                    eprintln!("Failed to open browser for {}: {}", url_for_thread, e);
+                command.arg(&url_for_thread);
+
+                match command.spawn() {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!(
+                            "Failed to open browser command for {}: {}",
+                            url_for_thread, e
+                        );
+                        // Fallback to webbrowser crate
+                        if let Err(e2) = webbrowser::open(&url_for_thread) {
+                            eprintln!("Fallback also failed for {}: {}", url_for_thread, e2);
+                        }
+                    }
+                }
+            } else {
+                // Use system default browser
+                match webbrowser::open(&url_for_thread) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        eprintln!("Failed to open browser for {}: {}", url_for_thread, e);
+                    }
                 }
             }
         });

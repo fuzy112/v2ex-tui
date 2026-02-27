@@ -975,6 +975,7 @@ pub struct UiState {
     pub error: Option<String>,
     pub status_message: String,
     pub theme: crate::ui::Theme,
+    pub timestamp_format: crate::util::TimestampFormat,
 }
 
 impl UiState {
@@ -984,6 +985,7 @@ impl UiState {
             error: None,
             status_message: "Press '?' for help".to_string(),
             theme: crate::ui::Theme::default(),
+            timestamp_format: crate::util::TimestampFormat::default(),
         }
     }
 }

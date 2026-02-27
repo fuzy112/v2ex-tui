@@ -132,47 +132,66 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
     // Get runtime config for building keymap chains
     let runtime_config = config_engine.runtime_config();
 
-    // Copy key mappings from config to app
+    // Copy config settings to app
     {
         let config = &runtime_config.borrow().config;
         app.tab_key_mappings = config.tab_key_mappings.clone();
         app.node_key_mappings = config.node_key_mappings.clone();
         app.link_key_mappings = config.link_key_mappings.clone();
         app.favorite_nodes = config.favorite_nodes.clone();
+        // Copy timestamp format setting
+        app.ui_state.timestamp_format = match config.timestamp_format {
+            crate::config::TimestampFormat::Relative => crate::util::TimestampFormat::Relative,
+            crate::config::TimestampFormat::Absolute => crate::util::TimestampFormat::Absolute,
+        };
+        // Set custom browser command if configured
+        if let Some(ref browser_cmd) = config.browser_command {
+            crate::browser::set_browser_command(browser_cmd.clone());
+        }
+        // Set custom absolute time format if configured
+        if !config.absolute_time_format.is_empty() {
+            crate::util::set_absolute_time_format(config.absolute_time_format.clone());
+        }
     }
 
     // Load initial view based on config
-    {
+    // Copy config values first to avoid holding RefCell borrow across await
+    let (initial_view, initial_node, initial_tab) = {
         let config = &runtime_config.borrow().config;
-        match config.initial_view {
-            View::TopicList => {
-                // Switch to initial node if specified
-                if !config.initial_node.is_empty() {
-                    app.node_state.switch_node(&config.initial_node);
-                }
-                app.load_topics(&client, false).await;
-                app.navigate_to(View::TopicList);
+        (
+            config.initial_view,
+            config.initial_node.clone(),
+            config.initial_tab.clone(),
+        )
+    };
+    match initial_view {
+        View::TopicList => {
+            // Switch to initial node if specified
+            if !initial_node.is_empty() {
+                app.node_state.switch_node(&initial_node);
             }
-            View::Notifications => {
-                app.load_notifications(&client).await;
-                app.navigate_to(View::Notifications);
+            app.load_topics(&client, false).await;
+            app.navigate_to(View::TopicList);
+        }
+        View::Notifications => {
+            app.load_notifications(&client).await;
+            app.navigate_to(View::Notifications);
+        }
+        View::Profile => {
+            app.load_profile(&client).await;
+            app.navigate_to(View::Profile);
+        }
+        View::Aggregate => {
+            // Switch to initial tab if specified
+            if !initial_tab.is_empty() {
+                app.aggregate_state.switch_tab(&initial_tab);
             }
-            View::Profile => {
-                app.load_profile(&client).await;
-                app.navigate_to(View::Profile);
-            }
-            View::Aggregate => {
-                // Switch to initial tab if specified
-                if !config.initial_tab.is_empty() {
-                    app.aggregate_state.switch_tab(&config.initial_tab);
-                }
-                app.load_aggregate(&client).await;
-                app.navigate_to(View::Aggregate);
-            }
-            _ => {
-                app.load_topics(&client, false).await;
-                app.navigate_to(View::TopicList);
-            }
+            app.load_aggregate(&client).await;
+            app.navigate_to(View::Aggregate);
+        }
+        _ => {
+            app.load_topics(&client, false).await;
+            app.navigate_to(View::TopicList);
         }
     }
 
@@ -234,13 +253,11 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                             };
 
                             if let Some(action) = action {
-                                let should_exit = {
-                                    let runtime = runtime_config.borrow();
-                                    runtime
-                                        .action_registry
-                                        .execute(&action, &mut app, &client)
-                                        .await?
-                                };
+                                // Clone the action registry reference to avoid holding RefCell borrow across await
+                                let action_registry =
+                                    runtime_config.borrow().action_registry.clone();
+                                let should_exit =
+                                    action_registry.execute(&action, &mut app, &client).await?;
                                 if should_exit {
                                     break;
                                 }

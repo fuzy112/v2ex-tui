@@ -6,7 +6,11 @@ use ratatui::{
     Frame,
 };
 
-use crate::{api::Topic, ui::Theme, util::format_relative_time};
+use crate::{
+    api::Topic,
+    ui::Theme,
+    util::{format_timestamp, TimestampFormat},
+};
 
 pub struct TopicListView;
 
@@ -15,6 +19,7 @@ impl TopicListView {
         Self
     }
 
+    #[allow(clippy::too_many_arguments)] // View render functions need multiple parameters
     pub fn render(
         &self,
         frame: &mut Frame,
@@ -23,6 +28,7 @@ impl TopicListView {
         selected: usize,
         current_node: &str,
         theme: &Theme,
+        timestamp_format: TimestampFormat,
     ) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -93,7 +99,7 @@ impl TopicListView {
 
                 let title = &topic.title;
                 let replies = topic.replies;
-                let time_str = format_relative_time(topic.created);
+                let time_str = format_timestamp(topic.created, timestamp_format);
 
                 let line = Line::from(vec![
                     Span::styled(

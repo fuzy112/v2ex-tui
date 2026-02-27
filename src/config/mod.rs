@@ -29,6 +29,7 @@ pub struct Config {
 
     // Node settings
     pub favorite_nodes: Vec<(String, String)>, // (name, display_name)
+    #[allow(dead_code)] // Reserved for future feature: Alternative node key mapping system
     pub quick_node_keys: HashMap<char, String>, // '1' -> "python"
 
     // Browser settings
@@ -36,17 +37,23 @@ pub struct Config {
 
     // Theme settings
     pub theme: ThemePreset,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub custom_theme: Option<CustomTheme>,
 
     // Time format settings
     pub timestamp_format: TimestampFormat,
     pub absolute_time_format: String,
 
-    // Image settings (future)
+    // Image settings (future inline image display)
+    #[allow(dead_code)] // Reserved for future feature: Inline image display with ratatui-image
     pub inline_images: bool,
+    #[allow(dead_code)] // Reserved for future feature: Inline image display protocol selection
     pub image_protocol: ImageProtocol,
+    #[allow(dead_code)] // Reserved for future feature: Inline image max dimensions
     pub max_image_width: u32,
+    #[allow(dead_code)] // Reserved for future feature: Inline image max dimensions
     pub max_image_height: u32,
+    #[allow(dead_code)] // Reserved for future feature: Inline image caching
     pub image_cache_dir: PathBuf,
 
     // Aggregate tab key mappings (key -> tab name)
@@ -68,14 +75,23 @@ pub enum ThemePreset {
 /// Custom theme colors
 #[derive(Clone, Debug)]
 pub struct CustomTheme {
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub foreground: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub background: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub primary: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub secondary: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub accent: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub error: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub success: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub warning: String,
+    #[allow(dead_code)] // Reserved for future feature: Full custom color theming
     pub info: String,
 }
 
@@ -90,9 +106,13 @@ pub enum TimestampFormat {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ImageProtocol {
     Auto,
+    #[allow(dead_code)] // Reserved for future feature: Sixel graphics protocol
     Sixel,
+    #[allow(dead_code)] // Reserved for future feature: Kitty graphics protocol
     Kitty,
+    #[allow(dead_code)] // Reserved for future feature: iTerm2 graphics protocol
     Iterm2,
+    #[allow(dead_code)] // Reserved for future feature: Disable inline images
     None,
 }
 

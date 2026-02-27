@@ -726,6 +726,7 @@ impl App {
                         self.topic_state.selected,
                         &self.node_state.current_node,
                         &self.ui_state.theme,
+                        self.ui_state.timestamp_format,
                     );
                 }
             }
@@ -759,6 +760,7 @@ impl App {
                             &self.topic_state.replies,
                             &mut self.topic_state.replies_list_state,
                             &self.ui_state.theme,
+                            self.ui_state.timestamp_format,
                         );
                     } else {
                         topic_detail_view.render(
@@ -770,6 +772,7 @@ impl App {
                             self.topic_state.link_input_state.is_active,
                             self.topic_state.parsed_content_cache.as_deref(),
                             &self.ui_state.theme,
+                            self.ui_state.timestamp_format,
                         );
                     }
                 }
@@ -841,6 +844,7 @@ impl App {
                         self.aggregate_state.selected,
                         &self.aggregate_state.current_tab,
                         &self.ui_state.theme,
+                        self.ui_state.timestamp_format,
                     );
                 }
             }

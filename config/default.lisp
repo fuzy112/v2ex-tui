@@ -3,7 +3,25 @@
 (set! "auto-refresh-interval" 0)
 (set! "key-sequence-timeout" 1000)
 (set! "theme" "dark")
+
+; Timestamp format: "relative" (e.g., "2 hours ago") or "absolute" (e.g., "2026-02-09 14:30")
 (set! "timestamp-format" "relative")
+
+; Absolute time format string (when timestamp-format is "absolute")
+; Uses strftime format codes: %Y=year, %m=month, %d=day, %H=hour, %M=minute, %S=second
+; Examples:
+;   "%Y-%m-%d %H:%M"     -> "2026-02-09 14:30"
+;   "%Y/%m/%d %H:%M:%S"  -> "2026/02/09 14:30:00"
+;   "%a %b %d %H:%M"     -> "Sun Feb 09 14:30"
+(set! "absolute-time-format" "%Y-%m-%d %H:%M")
+
+; Browser command - custom command to open URLs (optional)
+; If not set, uses system default browser
+; Examples:
+;   (set! "browser-command" ["firefox"])
+;   (set! "browser-command" ["google-chrome" "--new-window"])
+;   (set! "browser-command" ["w3m"])
+; (set! "browser-command" ["firefox"])
 
 ; Initial view: "topic-list" or "aggregate"
 (set! "initial-view" "aggregate")
