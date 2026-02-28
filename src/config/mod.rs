@@ -227,16 +227,19 @@ impl Config {
     }
 
     /// Get the config file path
+    #[allow(dead_code)] // Reserved for future feature: Config reload and CLI config path display
     pub fn config_file() -> Result<PathBuf> {
         Ok(Self::config_dir()?.join("config.lisp"))
     }
 
     /// Create default configuration
+    #[allow(dead_code)] // Reserved for future feature: Programmatic config creation
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Validate the configuration
+    #[allow(dead_code)] // Reserved for future feature: Config validation before applying
     pub fn validate(&self) -> Result<()> {
         // TODO: Add validation logic
         Ok(())
@@ -449,6 +452,95 @@ impl RuntimeConfig {
         );
         keymaps.insert(View::TopicDetail, topic_detail);
 
+        // Aggregate view
+        let mut aggregate = KeyMap::new("aggregate");
+        aggregate.bind(
+            crate::keymap::Key {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-aggregate-item",
+        );
+        aggregate.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-in-browser",
+        );
+        aggregate.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('g'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "refresh-aggregate",
+        );
+        // Tab switching keys (t, c, k, a, j, d, y, z, i)
+        for key in ['t', 'c', 'k', 'a', 'j', 'd', 'y', 'z', 'i'] {
+            aggregate.bind(
+                crate::keymap::Key {
+                    code: KeyCode::Char(key),
+                    modifiers: KeyModifiers::empty(),
+                },
+                "switch-tab",
+            );
+        }
+        keymaps.insert(View::Aggregate, aggregate);
+
+        // Notifications view
+        let mut notifications = KeyMap::new("notifications");
+        notifications.bind(
+            crate::keymap::Key {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-topic",
+        );
+        notifications.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-in-browser",
+        );
+        notifications.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('g'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "refresh",
+        );
+        keymaps.insert(View::Notifications, notifications);
+
+        // Profile view
+        let mut profile = KeyMap::new("profile");
+        profile.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('g'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "refresh",
+        );
+        keymaps.insert(View::Profile, profile);
+
+        // Help view
+        let mut help = KeyMap::new("help");
+        help.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('q'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "remove-from-history",
+        );
+        help.bind(
+            crate::keymap::Key {
+                code: KeyCode::Esc,
+                modifiers: KeyModifiers::empty(),
+            },
+            "remove-from-history",
+        );
+        keymaps.insert(View::Help, help);
+
         keymaps
     }
 
@@ -566,76 +658,16 @@ impl RuntimeConfig {
 
         // Link selection mode
         let mut link_selection = KeyMap::new("link-selection");
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('a'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-a",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('o'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-o",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('e'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-e",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('u'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-u",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('i'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-i",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('d'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-d",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('h'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-h",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('t'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-t",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('n'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-n",
-        );
-        link_selection.bind(
-            crate::keymap::Key {
-                code: KeyCode::Char('s'),
-                modifiers: KeyModifiers::empty(),
-            },
-            "link-select-s",
-        );
+        // Home row keys for link selection (all bound to same action, uses last_key)
+        for key in ['a', 'o', 'e', 'u', 'i', 'd', 'h', 't', 'n', 's'] {
+            link_selection.bind(
+                crate::keymap::Key {
+                    code: KeyCode::Char(key),
+                    modifiers: KeyModifiers::empty(),
+                },
+                "link-select",
+            );
+        }
         link_selection.bind(
             crate::keymap::Key {
                 code: KeyCode::Esc,
@@ -698,6 +730,7 @@ impl RuntimeConfig {
     }
 
     /// Reset to default state
+    #[allow(dead_code)] // Reserved for future feature: Hot config reload
     pub fn reset(&mut self) {
         self.config = Config::default();
         self.global_keymap = KeyMap::new("global");

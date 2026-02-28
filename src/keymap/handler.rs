@@ -3,6 +3,8 @@
 //! This module provides a compatibility layer while we transition to the new
 //! configurable keymap system. It will be replaced by the full config system.
 
+#![allow(dead_code)] // Legacy module kept for reference during transition
+
 use anyhow::Result;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 

@@ -1,3 +1,6 @@
+//! Keymap registry - legacy implementation
+#![allow(dead_code)] // Legacy module, kept for potential future use
+
 use std::collections::HashMap;
 use std::rc::Rc;
 

@@ -54,6 +54,7 @@ pub enum Action {
     RefreshAggregate,
 
     // Custom action with name
+    #[allow(dead_code)] // Reserved for future feature: User-defined actions from Lisp config
     Custom(String),
 }
 
@@ -84,6 +85,7 @@ impl ActionRegistry {
     }
 
     /// Check if an action exists
+    #[allow(dead_code)] // Reserved for future feature: Config validation and error reporting
     pub fn has_action(&self, name: &str) -> bool {
         self.actions.contains_key(name)
     }
@@ -566,6 +568,78 @@ impl ActionRegistry {
                 // TODO: Implement config reload - requires passing config_engine to actions
                 app.ui_state.status_message =
                     "Config reload requires restart (not yet implemented)".to_string();
+                Ok(false)
+            }
+
+            LinkSelect => {
+                // Handle link selection in link mode
+                if let Some(ref key) = app.last_key {
+                    use crossterm::event::KeyCode;
+                    if let KeyCode::Char(ch) = key.code {
+                        let (input, timeout_reset, valid_input) =
+                            app.topic_state.handle_link_mode_key(ch);
+
+                        if !valid_input {
+                            app.ui_state.status_message = format!(
+                                "Invalid key '{}' - only home row letters (a/o/e/u/i/d/h/t/n/s) are allowed",
+                                ch
+                            );
+                            app.topic_state.exit_link_selection_mode();
+                            return Ok(false);
+                        }
+
+                        if timeout_reset {
+                            app.ui_state.status_message =
+                                format!("Link mode: input reset (timeout). Current: '{}'", input);
+                        } else {
+                            app.ui_state.status_message = format!("Link mode: input '{}'", input);
+                        }
+
+                        // Prefix matching with exact match detection
+                        let matches = app.topic_state.find_links_by_prefix(&input);
+
+                        // Check for exact match (input length equals shortcut length)
+                        let exact_match = matches
+                            .iter()
+                            .find(|link| link.shortcut.len() == input.len());
+
+                        if let Some(link) = exact_match {
+                            // Exact match found - open the link
+                            match crate::browser::Browser::open_url(&link.url) {
+                                Ok(result) => {
+                                    app.ui_state.status_message =
+                                        format!("Opening link {}: {}", link.shortcut, result);
+                                }
+                                Err(e) => {
+                                    app.ui_state.error = Some(format!(
+                                        "Failed to open link {}: {}",
+                                        link.shortcut, e
+                                    ));
+                                }
+                            }
+                            app.topic_state.exit_link_selection_mode();
+                        } else if !matches.is_empty() {
+                            // Multiple prefix matches - show feedback
+                            let shortcuts: Vec<&str> =
+                                matches.iter().map(|l| l.shortcut.as_str()).collect();
+                            app.ui_state.status_message = format!(
+                                "Link mode: input '{}', matches: {}",
+                                input,
+                                shortcuts.join(", ")
+                            );
+                        } else {
+                            // No matching links for this input - exit link mode
+                            app.ui_state.status_message = format!("No link matching '{}'", input);
+                            app.topic_state.exit_link_selection_mode();
+                        }
+                    } else {
+                        app.ui_state.status_message =
+                            format!("Invalid key for link selection: {:?}", key.code);
+                        app.topic_state.exit_link_selection_mode();
+                    }
+                } else {
+                    app.ui_state.status_message = "No key pressed for link selection".to_string();
+                }
                 Ok(false)
             }
 

@@ -215,6 +215,7 @@ impl ConfigEngine {
     }
 
     /// Load configuration from a string
+    #[allow(dead_code)] // Test utility, used in integration tests
     pub fn load_string(&mut self, code: &str) -> Result<()> {
         self.interpreter
             .run_code(code, None)

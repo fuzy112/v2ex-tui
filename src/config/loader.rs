@@ -51,6 +51,7 @@ pub fn init_config() -> Result<(ConfigEngine, Option<String>)> {
 }
 
 /// Load configuration from a specific path
+#[allow(dead_code)] // Reserved for future feature: CLI option to specify config path
 pub fn load_config_from(path: &Path) -> Result<ConfigEngine> {
     let mut engine = ConfigEngine::new();
     engine.load_file(path)?;
@@ -58,6 +59,7 @@ pub fn load_config_from(path: &Path) -> Result<ConfigEngine> {
 }
 
 /// Reload configuration
+#[allow(dead_code)] // Reserved for future feature: Hot config reload
 pub fn reload_config(engine: &mut ConfigEngine) -> anyhow::Result<()> {
     let config_file = crate::config::Config::config_file()?;
 

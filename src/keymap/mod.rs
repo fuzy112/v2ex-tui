@@ -34,6 +34,7 @@ pub enum Binding {
     /// Execute an action
     Action(String), // Action name as string
     /// Prefix key - more keys expected
+    #[allow(dead_code)] // Reserved for future feature: Key sequences (Emacs-style C-x C-s)
     Prefix(Rc<KeyMap>),
 }
 
@@ -45,6 +46,7 @@ pub struct KeyMap {
     /// Parent keymap for inheritance
     parent: Option<Rc<KeyMap>>,
     /// Name for debugging
+    #[allow(dead_code)] // Reserved for future feature: Debug logging and error messages
     name: String,
 }
 
@@ -59,6 +61,7 @@ impl KeyMap {
     }
 
     /// Create a keymap with a parent
+    #[allow(dead_code)] // Reserved for future feature: Hierarchical keymap inheritance
     pub fn with_parent(name: impl Into<String>, parent: Rc<KeyMap>) -> Self {
         Self {
             bindings: HashMap::new(),
@@ -68,6 +71,7 @@ impl KeyMap {
     }
 
     /// Get the keymap name
+    #[allow(dead_code)] // Reserved for future feature: Debug logging
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -78,16 +82,19 @@ impl KeyMap {
     }
 
     /// Bind a key to a prefix keymap
+    #[allow(dead_code)] // Reserved for future feature: Key sequences
     pub fn bind_prefix(&mut self, key: Key, prefix_map: Rc<KeyMap>) {
         self.bindings.insert(key, Binding::Prefix(prefix_map));
     }
 
     /// Unbind a key
+    #[allow(dead_code)] // Reserved for future feature: Dynamic keymap modification
     pub fn unbind(&mut self, key: &Key) -> Option<Binding> {
         self.bindings.remove(key)
     }
 
     /// Lookup a key in this keymap only
+    #[allow(dead_code)] // Reserved for future feature: Keymap introspection
     pub fn lookup_local(&self, key: &Key) -> Option<&Binding> {
         self.bindings.get(key)
     }
@@ -100,11 +107,13 @@ impl KeyMap {
     }
 
     /// Check if a key is bound locally
+    #[allow(dead_code)] // Reserved for future feature: Keymap introspection and conflict detection
     pub fn is_bound(&self, key: &Key) -> bool {
         self.bindings.contains_key(key)
     }
 
     /// Get all local bindings
+    #[allow(dead_code)] // Reserved for future feature: Keymap display and debugging
     pub fn bindings(&self) -> &HashMap<Key, Binding> {
         &self.bindings
     }
@@ -132,11 +141,13 @@ impl KeyMapChain {
     }
 
     /// Remove and return the highest priority keymap
+    #[allow(dead_code)] // Reserved for future feature: Dynamic mode stack management
     pub fn pop(&mut self) -> Option<Rc<KeyMap>> {
         self.keymaps.pop()
     }
 
     /// Clear all keymaps
+    #[allow(dead_code)] // Reserved for future feature: Reset keymap chain
     pub fn clear(&mut self) {
         self.keymaps.clear();
     }
@@ -153,6 +164,7 @@ impl KeyMapChain {
     }
 
     /// Get all keymaps in the chain
+    #[allow(dead_code)] // Reserved for future feature: Keymap debugging and introspection
     pub fn keymaps(&self) -> &[Rc<KeyMap>] {
         &self.keymaps
     }
@@ -160,6 +172,7 @@ impl KeyMapChain {
 
 /// Parse Emacs-style key notation
 /// Examples: "C-c", "M-v", "C-x C-s", "SPC", "RET"
+#[allow(dead_code)] // Reserved for future feature: Key sequence configuration from Lisp
 pub fn parse_key_sequence(_notation: &str) -> Result<Vec<Key>, String> {
     // TODO: Implement parsing
     // For now, return empty (will be implemented)

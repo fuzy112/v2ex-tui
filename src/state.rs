@@ -708,12 +708,14 @@ pub struct NotificationState {
 }
 
 impl NotificationState {
+    #[allow(dead_code)] // Not currently used, action handler modifies selected directly
     pub fn next(&mut self) {
         if !self.notifications.is_empty() {
             self.selected = (self.selected + 1) % self.notifications.len();
         }
     }
 
+    #[allow(dead_code)] // Not currently used, action handler modifies selected directly
     pub fn previous(&mut self) {
         if !self.notifications.is_empty() {
             self.selected = if self.selected == 0 {
@@ -767,12 +769,14 @@ impl NodeState {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, action handler modifies selected directly
     pub fn next_node(&mut self) {
         if !self.favorite_nodes.is_empty() {
             self.selected = (self.selected + 1) % self.favorite_nodes.len();
         }
     }
 
+    #[allow(dead_code)] // Not currently used, action handler modifies selected directly
     pub fn previous_node(&mut self) {
         if !self.favorite_nodes.is_empty() {
             self.selected = if self.selected == 0 {
@@ -783,6 +787,7 @@ impl NodeState {
         }
     }
 
+    #[allow(dead_code)] // Not currently used, action handler uses switch_node directly
     pub fn select_current_node(&mut self) -> Option<String> {
         if let Some((node_name, _)) = self.favorite_nodes.get(self.selected) {
             self.current_node = node_name.clone();
@@ -903,6 +908,7 @@ impl NodeState {
         self.selected = 0;
     }
 
+    #[allow(dead_code)] // Not currently used, state is reset when entering node select
     pub fn reset_selection(&mut self) {
         self.completion_input.clear();
         self.completion_cursor = 0;
