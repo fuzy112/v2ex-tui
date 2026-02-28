@@ -730,9 +730,71 @@ impl ActionRegistry {
                 Ok(false)
             }
 
-            Custom(name) => Err(anyhow::anyhow!("Custom action '{}' not implemented", name)),
+            CopyToClipboard => {
+                match app.view {
+                    View::TopicList => {
+                        if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
+                            if let Err(e) = crate::clipboard::copy_to_clipboard(&topic.title) {
+                                app.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+                            } else {
+                                app.ui_state.status_message = "Topic title copied to clipboard".to_string();
+                            }
+                        }
+                    }
+                    View::TopicDetail => {
+                        if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
+                            let reply = &app.topic_state.replies[app.topic_state.selected_reply];
+                            let content = reply
+                                .content_rendered
+                                .as_ref()
+                                .or(reply.content.as_ref())
+                                .map(|s| s.to_string())
+                                .unwrap_or_default();
+                            let plain_text = html2text::from_read(content.as_bytes(), 80);
+                            if let Err(e) = crate::clipboard::copy_to_clipboard(&plain_text) {
+                                app.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+                            } else {
+                                app.ui_state.status_message = "Reply content copied to clipboard".to_string();
+                            }
+                        } else {
+                            if let Some(topic) = &app.topic_state.current {
+                                let content = topic
+                                    .content_rendered
+                                    .as_ref()
+                                    .or(topic.content.as_ref())
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_default();
+                                let plain_text = html2text::from_read(content.as_bytes(), 80);
+                                if let Err(e) = crate::clipboard::copy_to_clipboard(&plain_text) {
+                                    app.ui_state.error = Some(format!("Failed to copy to clipboard: {}", e));
+                                } else {
+                                    app.ui_state.status_message = "Topic content copied to clipboard".to_string();
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        app.ui_state.status_message = "Copy to clipboard not available in this view".to_string();
+                    }
+                }
+                Ok(false)
+            }
 
-            _ => Err(anyhow::anyhow!("Action not implemented")),
+            ScrollDown => {
+                match app.view {
+                    View::TopicDetail => {
+                        if !app.topic_state.show_replies {
+                            app.topic_state.scroll_down();
+                        }
+                    }
+                    _ => {
+                        app.ui_state.status_message = "Scroll down not available in this view".to_string();
+                    }
+                }
+                Ok(false)
+            }
+
+            Custom(name) => Err(anyhow::anyhow!("Custom action '{}' not implemented", name)),
         }
     }
 
