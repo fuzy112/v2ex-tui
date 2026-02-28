@@ -402,6 +402,13 @@ impl RuntimeConfig {
             },
             "select-node",
         );
+        topic_list.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
+        );
         // Note: </>/C-v/M-v navigation is provided by "browse" mode
         keymaps.insert(View::TopicList, topic_list);
 
@@ -450,6 +457,13 @@ impl RuntimeConfig {
             },
             "previous-topic",
         );
+        topic_detail.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
+        );
         keymaps.insert(View::TopicDetail, topic_detail);
 
         // Aggregate view
@@ -485,6 +499,13 @@ impl RuntimeConfig {
                 "switch-tab",
             );
         }
+        aggregate.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
+        );
         keymaps.insert(View::Aggregate, aggregate);
 
         // Notifications view
@@ -510,6 +531,13 @@ impl RuntimeConfig {
             },
             "refresh",
         );
+        notifications.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
+        );
         keymaps.insert(View::Notifications, notifications);
 
         // Profile view
@@ -520,6 +548,13 @@ impl RuntimeConfig {
                 modifiers: KeyModifiers::empty(),
             },
             "refresh",
+        );
+        profile.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
         );
         keymaps.insert(View::Profile, profile);
 
@@ -539,7 +574,61 @@ impl RuntimeConfig {
             },
             "remove-from-history",
         );
+        help.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('/'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "go-to-search",
+        );
         keymaps.insert(View::Help, help);
+
+        // Search view
+        let mut search = KeyMap::new("search");
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Enter,
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-search-result",
+        );
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('s'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "toggle-search-sort",
+        );
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('o'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "open-in-browser",
+        );
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('C'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "clear-search",
+        );
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('g'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "execute-search",
+        );
+        // Tab to toggle between input and browse mode
+        search.bind(
+            crate::keymap::Key {
+                code: KeyCode::Tab,
+                modifiers: KeyModifiers::empty(),
+            },
+            "toggle-search-mode",
+        );
+        keymaps.insert(View::Search, search);
 
         keymaps
     }
@@ -725,6 +814,52 @@ impl RuntimeConfig {
             );
         }
         keymaps.insert("node-select".to_string(), node_select);
+
+        // Search mode (for browsing results when not in input mode)
+        let mut search_mode = KeyMap::new("search");
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('n'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "next-search-result",
+        );
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('p'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "previous-search-result",
+        );
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('<'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "first-item",
+        );
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('>'),
+                modifiers: KeyModifiers::empty(),
+            },
+            "last-item",
+        );
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::CONTROL,
+            },
+            "page-down",
+        );
+        search_mode.bind(
+            crate::keymap::Key {
+                code: KeyCode::Char('v'),
+                modifiers: KeyModifiers::ALT,
+            },
+            "page-up",
+        );
+        keymaps.insert("search".to_string(), search_mode);
 
         keymaps
     }

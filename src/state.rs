@@ -1,7 +1,242 @@
-use crate::api::RssItem;
+use crate::api::{RssItem, SearchResult};
 use ratatui::widgets::ListState;
 use std::ops::Range;
 use std::time::{Duration, Instant};
+
+/// Sort order for search results
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SearchSort {
+    #[default]
+    Relevance, // sumup
+    Created, // created
+}
+
+impl SearchSort {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SearchSort::Relevance => "sumup",
+            SearchSort::Created => "created",
+        }
+    }
+
+    pub fn toggle(&self) -> Self {
+        match self {
+            SearchSort::Relevance => SearchSort::Created,
+            SearchSort::Created => SearchSort::Relevance,
+        }
+    }
+
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            SearchSort::Relevance => "Rel",
+            SearchSort::Created => "Time",
+        }
+    }
+}
+
+/// Search state for SOV2EX integration
+#[derive(Debug, Default)]
+pub struct SearchState {
+    pub query: String, // Current search query
+    pub cursor: usize, // Cursor position in input
+    pub results: Vec<SearchResult>,
+    pub selected: usize,
+    pub from: i32, // Pagination offset
+    pub total: i64,
+    pub has_more: bool,
+    pub sort_by: SearchSort,
+    pub is_input_mode: bool, // true = typing query, false = browsing results
+}
+
+impl SearchState {
+    pub fn new() -> Self {
+        Self {
+            query: String::new(),
+            cursor: 0,
+            results: Vec::new(),
+            selected: 0,
+            from: 0,
+            total: 0,
+            has_more: false,
+            sort_by: SearchSort::default(),
+            is_input_mode: true,
+        }
+    }
+
+    pub fn insert_char(&mut self, ch: char) {
+        if self.cursor <= self.query.len() {
+            self.query.insert(self.cursor, ch);
+            self.cursor += 1;
+        }
+    }
+
+    pub fn delete_char(&mut self) {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+            self.query.remove(self.cursor);
+        }
+    }
+
+    pub fn delete_char_forward(&mut self) {
+        if self.cursor < self.query.len() {
+            self.query.remove(self.cursor);
+        }
+    }
+
+    pub fn move_cursor_left(&mut self) {
+        if self.cursor > 0 {
+            self.cursor -= 1;
+        }
+    }
+
+    pub fn move_cursor_right(&mut self) {
+        if self.cursor < self.query.len() {
+            self.cursor += 1;
+        }
+    }
+
+    pub fn move_cursor_start(&mut self) {
+        self.cursor = 0;
+    }
+
+    pub fn move_cursor_end(&mut self) {
+        self.cursor = self.query.len();
+    }
+
+    pub fn clear_input(&mut self) {
+        self.query.clear();
+        self.cursor = 0;
+    }
+
+    pub fn clear_results(&mut self) {
+        self.results.clear();
+        self.selected = 0;
+        self.from = 0;
+        self.total = 0;
+        self.has_more = false;
+    }
+
+    pub fn next_result(&mut self) {
+        if !self.results.is_empty() {
+            self.selected = (self.selected + 1) % self.results.len();
+        }
+    }
+
+    pub fn previous_result(&mut self) {
+        if !self.results.is_empty() {
+            self.selected = if self.selected == 0 {
+                self.results.len() - 1
+            } else {
+                self.selected - 1
+            };
+        }
+    }
+
+    pub fn toggle_sort(&mut self) {
+        self.sort_by = self.sort_by.toggle();
+        // Reset pagination when changing sort
+        self.from = 0;
+        self.selected = 0;
+    }
+
+    pub fn enter_input_mode(&mut self) {
+        self.is_input_mode = true;
+    }
+
+    pub fn enter_browse_mode(&mut self) {
+        self.is_input_mode = false;
+    }
+
+    pub fn toggle_mode(&mut self) {
+        self.is_input_mode = !self.is_input_mode;
+    }
+
+    /// Check if we're at the last result and can load more
+    pub fn at_last_result(&self) -> bool {
+        !self.results.is_empty() && self.selected + 1 >= self.results.len()
+    }
+
+    /// Get display range for status (e.g., "1-20 of 1000")
+    pub fn display_range(&self) -> String {
+        if self.results.is_empty() {
+            "0 of 0".to_string()
+        } else {
+            let start = self.from + 1;
+            let end = (self.from as usize + self.results.len()) as i32;
+            format!("{}-{} of {}", start, end, self.total)
+        }
+    }
+}
+
+#[cfg(test)]
+mod search_state_tests {
+    use super::*;
+
+    #[test]
+    fn test_search_state_insert_delete() {
+        let mut state = SearchState::new();
+
+        state.insert_char('h');
+        state.insert_char('i');
+        assert_eq!(state.query, "hi");
+        assert_eq!(state.cursor, 2);
+
+        state.move_cursor_left();
+        state.insert_char('e');
+        assert_eq!(state.query, "hei");
+
+        state.delete_char();
+        assert_eq!(state.query, "hi");
+    }
+
+    #[test]
+    fn test_search_state_navigation() {
+        let mut state = SearchState::new();
+        state.results = vec![
+            SearchResult {
+                source: crate::api::SearchHit {
+                    node: 1,
+                    replies: 10,
+                    created: "2024-01-01".to_string(),
+                    member: "user1".to_string(),
+                    id: 1,
+                    title: "Topic 1".to_string(),
+                    content: "Content 1".to_string(),
+                },
+                highlight: None,
+            },
+            SearchResult {
+                source: crate::api::SearchHit {
+                    node: 2,
+                    replies: 20,
+                    created: "2024-01-02".to_string(),
+                    member: "user2".to_string(),
+                    id: 2,
+                    title: "Topic 2".to_string(),
+                    content: "Content 2".to_string(),
+                },
+                highlight: None,
+            },
+        ];
+
+        assert_eq!(state.selected, 0);
+        state.next_result();
+        assert_eq!(state.selected, 1);
+        state.next_result();
+        assert_eq!(state.selected, 0); // wrap around
+        state.previous_result();
+        assert_eq!(state.selected, 1); // wrap around backwards
+    }
+
+    #[test]
+    fn test_search_sort_toggle() {
+        let mut sort = SearchSort::Relevance;
+        sort = sort.toggle();
+        assert!(matches!(sort, SearchSort::Created));
+        sort = sort.toggle();
+        assert!(matches!(sort, SearchSort::Relevance));
+    }
+}
 
 #[derive(Debug, Default)]
 pub struct AggregateState {

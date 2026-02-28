@@ -53,6 +53,16 @@ pub enum Action {
     OpenAggregateItem,
     RefreshAggregate,
 
+    // Search actions
+    GoToSearch,
+    ExecuteSearch,
+    NextSearchResult,
+    PreviousSearchResult,
+    ToggleSearchSort,
+    ClearSearch,
+    OpenSearchResult,
+    ToggleSearchMode,
+
     // Custom action with name
     #[allow(dead_code)] // Reserved for future feature: User-defined actions from Lisp config
     Custom(String),
@@ -643,6 +653,83 @@ impl ActionRegistry {
                 Ok(false)
             }
 
+            GoToSearch => {
+                app.search_state.enter_input_mode();
+                app.navigate_to(View::Search);
+                app.ui_state.status_message = "Search: Type query, Enter to search".to_string();
+                Ok(false)
+            }
+
+            ExecuteSearch => {
+                if app.search_state.query.trim().is_empty() {
+                    app.ui_state.status_message = "Please enter a search query".to_string();
+                } else {
+                    app.search_state.enter_browse_mode();
+                    app.load_search_results(client, false).await;
+                }
+                Ok(false)
+            }
+
+            NextSearchResult => {
+                if app.search_state.at_last_result() && app.search_state.has_more {
+                    // Load more results
+                    let prev_len = app.search_state.results.len();
+                    app.load_search_results(client, true).await;
+                    if app.search_state.results.len() > prev_len {
+                        app.search_state.selected = prev_len;
+                    } else {
+                        app.ui_state.status_message = "Already at the last result".to_string();
+                    }
+                } else {
+                    app.search_state.next_result();
+                }
+                Ok(false)
+            }
+
+            PreviousSearchResult => {
+                app.search_state.previous_result();
+                Ok(false)
+            }
+
+            ToggleSearchSort => {
+                app.search_state.toggle_sort();
+                // Re-search with new sort order
+                if !app.search_state.query.is_empty() {
+                    app.load_search_results(client, false).await;
+                }
+                Ok(false)
+            }
+
+            ClearSearch => {
+                app.search_state.clear_input();
+                app.search_state.clear_results();
+                app.search_state.enter_input_mode();
+                app.ui_state.status_message = "Search cleared".to_string();
+                Ok(false)
+            }
+
+            OpenSearchResult => {
+                // Load the full topic from the search result
+                if let Some(result) = app.search_state.results.get(app.search_state.selected) {
+                    let topic_id = result.source.id;
+                    app.topic_state.show_replies = false;
+                    app.load_topic_detail(client, topic_id).await;
+                    app.load_topic_replies(client, topic_id, false).await;
+                    app.navigate_to(View::TopicDetail);
+                }
+                Ok(false)
+            }
+
+            ToggleSearchMode => {
+                app.search_state.toggle_mode();
+                if app.search_state.is_input_mode {
+                    app.ui_state.status_message = "Input mode: type your search query".to_string();
+                } else {
+                    app.ui_state.status_message = "Browse mode: use n/p to navigate".to_string();
+                }
+                Ok(false)
+            }
+
             Custom(name) => Err(anyhow::anyhow!("Custom action '{}' not implemented", name)),
 
             _ => Err(anyhow::anyhow!("Action not implemented")),
@@ -703,6 +790,16 @@ impl ActionRegistry {
         self.register("open-aggregate-item", OpenAggregateItem);
         self.register("refresh-aggregate", RefreshAggregate);
         self.register("switch-tab", SwitchTab);
+
+        // Search view
+        self.register("go-to-search", GoToSearch);
+        self.register("execute-search", ExecuteSearch);
+        self.register("next-search-result", NextSearchResult);
+        self.register("previous-search-result", PreviousSearchResult);
+        self.register("toggle-search-sort", ToggleSearchSort);
+        self.register("clear-search", ClearSearch);
+        self.register("open-search-result", OpenSearchResult);
+        self.register("toggle-search-mode", ToggleSearchMode);
     }
 }
 

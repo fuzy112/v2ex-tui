@@ -222,6 +222,42 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                     }
                 }
 
+                // Special handling: Search input mode
+                if app.view == View::Search && app.search_state.is_input_mode {
+                    use crossterm::event::KeyCode;
+                    match key.code {
+                        KeyCode::Char(ch) => {
+                            app.search_state.insert_char(ch);
+                            continue;
+                        }
+                        KeyCode::Backspace => {
+                            app.search_state.delete_char();
+                            continue;
+                        }
+                        KeyCode::Delete => {
+                            app.search_state.delete_char_forward();
+                            continue;
+                        }
+                        KeyCode::Left => {
+                            app.search_state.move_cursor_left();
+                            continue;
+                        }
+                        KeyCode::Right => {
+                            app.search_state.move_cursor_right();
+                            continue;
+                        }
+                        KeyCode::Home => {
+                            app.search_state.move_cursor_start();
+                            continue;
+                        }
+                        KeyCode::End => {
+                            app.search_state.move_cursor_end();
+                            continue;
+                        }
+                        _ => {}
+                    }
+                }
+
                 // Build keymap chain for current state
                 let active_modes: Vec<String> = if app.topic_state.link_input_state.is_active {
                     vec!["link-selection".to_string()]
@@ -234,6 +270,9 @@ async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<(
                 } else if app.view == View::NodeSelect {
                     // Node selection mode for navigating and selecting nodes
                     vec!["node-select".to_string()]
+                } else if app.view == View::Search && !app.search_state.is_input_mode {
+                    // Search mode for navigating results (when not in input mode)
+                    vec!["search".to_string()]
                 } else {
                     vec![]
                 };

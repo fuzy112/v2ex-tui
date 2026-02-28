@@ -5,7 +5,9 @@ use ratatui::{
 
 use crate::api::{Member, V2exClient};
 use crate::browser::Browser;
-use crate::state::{AggregateState, NodeState, NotificationState, TokenState, TopicState, UiState};
+use crate::state::{
+    AggregateState, NodeState, NotificationState, SearchState, TokenState, TopicState, UiState,
+};
 use crate::ui::{render_error, render_loading, render_status_bar, render_token_input};
 use crate::views::aggregate::AggregateView;
 use crate::views::help::HelpView;
@@ -25,6 +27,7 @@ pub enum View {
     NodeSelect,
     TokenInput,
     Aggregate,
+    Search,
 }
 
 #[derive(Debug)]
@@ -37,6 +40,7 @@ pub struct App {
     pub token_state: TokenState,
     pub ui_state: UiState,
     pub aggregate_state: AggregateState,
+    pub search_state: SearchState,
     pub terminal_width: usize,
     pub terminal_height: usize,
     // History navigation
@@ -66,6 +70,7 @@ impl App {
             token_state: TokenState::default(),
             ui_state: UiState::new(),
             aggregate_state: AggregateState::new(),
+            search_state: SearchState::new(),
             terminal_width: 80,  // Default width
             terminal_height: 24, // Default height
             view_history: vec![initial_view],
@@ -287,6 +292,65 @@ impl App {
     pub async fn switch_aggregate_tab(&mut self, client: &V2exClient, tab: &str) {
         self.aggregate_state.switch_tab(tab);
         self.load_aggregate(client).await;
+    }
+
+    pub async fn load_search_results(&mut self, client: &V2exClient, append: bool) {
+        self.ui_state.loading = true;
+        self.ui_state.error = None;
+
+        let query = self.search_state.query.clone();
+        let from = if append {
+            self.search_state.from + self.search_state.results.len() as i32
+        } else {
+            0
+        };
+        let sort = self.search_state.sort_by.as_str();
+
+        // SOV2EX does not require authentication, but we use the existing client
+        match client.search_sov2ex(&query, from, 20, sort).await {
+            Ok(response) => {
+                let hits_len = response.hits.len();
+                if append {
+                    self.search_state.results.extend(response.hits);
+                    self.ui_state.status_message = format!(
+                        "Loaded {} more results (total: {}) from SOV2EX",
+                        hits_len,
+                        self.search_state.results.len()
+                    );
+                } else {
+                    self.search_state.results = response.hits;
+                    self.search_state.total = response.total;
+                    self.search_state.from = 0;
+                    self.search_state.selected = 0;
+                    self.ui_state.status_message = format!(
+                        "Found {} results for '{}' (took {}ms)",
+                        response.total, query, response.took
+                    );
+                }
+                self.search_state.has_more = (self.search_state.from as usize
+                    + self.search_state.results.len())
+                    < response.total as usize;
+            }
+            Err(e) => {
+                self.ui_state.error = Some(format!("Search failed: {}", e));
+            }
+        }
+
+        self.ui_state.loading = false;
+    }
+
+    #[allow(dead_code)] // Reserved for 'o' keybinding in search view
+    pub fn open_search_result_in_browser(&mut self) {
+        if let Some(result) = self.search_state.results.get(self.search_state.selected) {
+            match Browser::open_topic(result.source.id) {
+                Ok(msg) => {
+                    self.ui_state.status_message = msg.to_string();
+                }
+                Err(e) => {
+                    self.ui_state.error = Some(format!("Failed to open browser: {}", e));
+                }
+            }
+        }
     }
 
     // Helper to find current topic index based on previous view
@@ -847,6 +911,16 @@ impl App {
                         self.ui_state.timestamp_format,
                     );
                 }
+            }
+            View::Search => {
+                let search_view = crate::views::search::SearchView::new();
+                search_view.render(
+                    frame,
+                    chunks[0],
+                    &self.search_state,
+                    &self.ui_state.theme,
+                    self.ui_state.timestamp_format,
+                );
             }
         }
 

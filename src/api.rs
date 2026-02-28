@@ -384,7 +384,88 @@ impl RssItem {
     }
 }
 
+// SOV2EX Search API structs
+// https://www.sov2ex.com/api/search
+
+/// Search hit from SOV2EX (simplified topic data)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchHit {
+    pub node: i64, // Node ID only
+    pub replies: i64,
+    pub created: String, // ISO 8601
+    pub member: String,  // Username only
+    pub id: i64,         // Topic ID
+    pub title: String,
+    pub content: String,
+}
+
+/// Highlighted search results (HTML em tags)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SearchHighlight {
+    pub title: Option<Vec<String>>,
+    pub content: Option<Vec<String>>,
+}
+
+/// Individual search result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResult {
+    #[serde(rename = "_source")]
+    pub source: SearchHit,
+    pub highlight: Option<SearchHighlight>,
+}
+
+/// Search response from SOV2EX
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SearchResponse {
+    pub took: i64, // Search time in ms
+    pub timed_out: bool,
+    pub total: i64, // Total matching topics
+    pub hits: Vec<SearchResult>,
+}
+
 impl V2exClient {
+    /// Search V2EX topics using SOV2EX (third-party search service)
+    /// SOV2EX does not require authentication
+    pub async fn search_sov2ex(
+        &self,
+        query: &str,
+        from: i32,
+        size: i32,
+        sort: &str,
+    ) -> Result<SearchResponse> {
+        let url = format!(
+            "https://www.sov2ex.com/api/search?q={}&from={}&size={}&sort={}",
+            urlencoding::encode(query),
+            from,
+            size,
+            sort
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .with_context(|| format!("Failed to search SOV2EX for '{}'", query))?;
+
+        let status = response.status();
+        if !status.is_success() {
+            let text = response.text().await.unwrap_or_default();
+            return Err(anyhow::anyhow!(
+                "SOV2EX search failed: {} - {}",
+                status,
+                text
+            ));
+        }
+
+        let search_response: SearchResponse = response
+            .json()
+            .await
+            .with_context(|| "Failed to parse SOV2EX search response")?;
+
+        Ok(search_response)
+    }
+
     pub async fn get_rss_feed(&self, tab: &str) -> Result<Vec<RssItem>> {
         use anyhow::Context;
         use atom_syndication::Feed;
