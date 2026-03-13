@@ -33,10 +33,104 @@ chmod 600 ~/.config/v2ex/token.txt
 ```
 
 ### 3. 运行
+
+#### TUI 模式（交互式）
 ```bash
 cargo run --release
 # 或
 nix-shell --run "cargo run --release"
+```
+
+#### CLI 模式（命令行）
+```bash
+# 查看帮助
+v2ex-tui --help
+
+# 列出 Python 节点的主题
+v2ex-tui list python
+
+# 查看主题详情
+v2ex-tui show 123456
+
+# 查看主题回复
+v2ex-tui replies 123456
+
+# 查看通知
+v2ex-tui notifications
+
+# 查看用户资料
+v2ex-tui profile
+
+# 列出所有节点
+v2ex-tui nodes
+
+# 搜索节点
+v2ex-tui nodes --filter rust
+
+# 查看 RSS 聚合
+v2ex-tui aggregate
+
+# JSON 输出格式
+v2ex-tui --output json list python
+v2ex-tui --output json show 123456
+```
+
+## CLI 命令行工具
+
+v2ex-tui 现在支持 CLI 模式，可以在不启动 TUI 的情况下直接获取数据。
+
+### 全局选项
+- `-o, --output <FORMAT>` - 输出格式：`text` 或 `json`（默认：`text`）
+
+### 可用命令
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `list [NODE]` | 列出节点的主题 | `v2ex-tui list python` |
+| `show <ID>` | 显示主题详情 | `v2ex-tui show 123456` |
+| `replies <ID>` | 显示主题回复 | `v2ex-tui replies 123456` |
+| `notifications` | 显示通知 | `v2ex-tui notifications` |
+| `profile` | 显示用户资料 | `v2ex-tui profile` |
+| `nodes` | 列出可用节点 | `v2ex-tui nodes` |
+| `aggregate` | 显示 RSS 聚合主题 | `v2ex-tui aggregate` |
+
+### 命令选项
+
+**list 命令选项：**
+- `NODE` - 节点名称（默认：`python`）
+- `-p, --page <PAGE>` - 页码（默认：1）
+- `-l, --limit <LIMIT>` - 限制结果数量
+
+**show 命令选项：**
+- `ID` - 主题 ID（必需）
+- `-r, --replies` - 同时显示回复
+
+**replies 命令选项：**
+- `ID` - 主题 ID（必需）
+- `-p, --page <PAGE>` - 页码（默认：1）
+- `-l, --limit <LIMIT>` - 限制结果数量
+
+**nodes 命令选项：**
+- `-f, --filter <FILTER>` - 按关键词过滤节点
+- `-l, --limit <LIMIT>` - 限制结果数量
+
+### 使用示例
+
+```bash
+# 列出 Python 节点的主题（文本格式）
+v2ex-tui list python
+
+# 列出前 10 个主题（JSON 格式）
+v2ex-tui --output json list python --limit 10
+
+# 查看主题详情和回复
+v2ex-tui show 123456 --replies
+
+# 搜索包含 "rust" 的节点
+v2ex-tui nodes --filter rust
+
+# 查看第 2 页的通知
+v2ex-tui notifications --page 2
 ```
 
 ## 快捷键

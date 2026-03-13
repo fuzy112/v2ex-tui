@@ -353,7 +353,7 @@ impl V2exClient {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RssItem {
     pub title: String,
     pub link: String,
