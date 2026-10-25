@@ -35,7 +35,7 @@ impl NotificationsView {
 
                 let raw_text = notif.text.clone();
                 // Convert HTML to plain text
-                let text = html2text::from_read(raw_text.as_bytes(), 80);
+                let text = crate::util::html_to_text(&raw_text, 80);
 
                 let body = notif
                     .payload

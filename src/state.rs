@@ -413,15 +413,14 @@ impl TopicState {
         }
     }
 
-    pub fn next_reply(&mut self, width: usize) {
+    pub fn next_reply(&mut self, _width: usize) {
         if !self.replies.is_empty() {
             self.selected_reply = (self.selected_reply + 1) % self.replies.len();
             self.replies_list_state.select(Some(self.selected_reply));
-            self.detect_links(width); // Update links for the newly selected reply
         }
     }
 
-    pub fn previous_reply(&mut self, width: usize) {
+    pub fn previous_reply(&mut self, _width: usize) {
         if !self.replies.is_empty() {
             self.selected_reply = if self.selected_reply == 0 {
                 self.replies.len() - 1
@@ -429,7 +428,6 @@ impl TopicState {
                 self.selected_reply - 1
             };
             self.replies_list_state.select(Some(self.selected_reply));
-            self.detect_links(width); // Update links for the newly selected reply
         }
     }
 
@@ -470,23 +468,16 @@ impl TopicState {
         self.link_shortcuts.clear();
         self.parsed_content_cache = None;
 
-        // Determine which content to parse based on current view
-        let content_to_parse = if self.show_replies && !self.replies.is_empty() {
-            // Parse the selected reply
-            self.replies
-                .get(self.selected_reply)
-                .and_then(|reply| reply.content_rendered.as_ref().or(reply.content.as_ref()))
-                .map(|content| content.to_string())
-        } else if let Some(topic) = &self.current {
-            // Parse the topic content
+        // Always parse the topic content: the topic panel is what displays and
+        // highlights links. Parsing the selected reply here would put reply
+        // byte offsets onto topic text and could panic on UTF-8 boundaries.
+        let content_to_parse = self.current.as_ref().and_then(|topic| {
             topic
                 .content_rendered
                 .as_ref()
                 .or(topic.content.as_ref())
                 .map(|content| content.to_string())
-        } else {
-            None
-        };
+        });
 
         if let Some(content) = content_to_parse {
             // Process HTML content: extract images and replace with markdown format
@@ -494,7 +485,7 @@ impl TopicState {
 
             // Convert HTML to text using html2text with the actual terminal width
             // This ensures link positions match the rendered text
-            let converted_text = html2text::from_read(processed_content.as_bytes(), width);
+            let converted_text = crate::util::html_to_text(&processed_content, width);
 
             // Store converted text for potential use in rendering
             self.parsed_content_cache = Some(converted_text.clone());
@@ -553,7 +544,7 @@ impl TopicState {
         if index < HOME_ROW.len() {
             HOME_ROW[index].to_string()
         } else {
-            let first_idx = (index - HOME_ROW.len()) / HOME_ROW.len();
+            let first_idx = ((index - HOME_ROW.len()) / HOME_ROW.len()) % HOME_ROW.len();
             let second_idx = (index - HOME_ROW.len()) % HOME_ROW.len();
             format!("{}{}", HOME_ROW[first_idx], HOME_ROW[second_idx])
         }
@@ -618,8 +609,8 @@ impl TopicState {
         // Create DetectedLink objects from all matches
         for (index, (url, range, _is_image)) in all_matches.into_iter().enumerate() {
             let shortcut = Self::assign_shortcut(index);
-            let display_text = if url.len() > 50 {
-                format!("{}...", &url[..47])
+            let display_text = if url.chars().count() > 50 {
+                format!("{}...", crate::util::truncate_chars(&url, 47))
             } else {
                 url.clone()
             };
@@ -961,10 +952,33 @@ impl TokenState {
 
     pub fn save(&self) -> anyhow::Result<()> {
         use anyhow::Context;
+        use std::io::Write;
+
         let config_dir = crate::api::V2exClient::config_dir()?;
         let token_path = config_dir.join("token.txt");
-        std::fs::write(&token_path, self.input.trim())
+
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+
+        let mut file = options
+            .open(&token_path)
+            .with_context(|| format!("Failed to open token file {:?}", token_path))?;
+        file.write_all(self.input.trim().as_bytes())
             .with_context(|| format!("Failed to write token to {:?}", token_path))?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600))
+                .with_context(|| format!("Failed to set permissions on {:?}", token_path))?;
+        }
+
         Ok(())
     }
 }

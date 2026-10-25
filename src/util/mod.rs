@@ -1,5 +1,18 @@
 use chrono::{Local, TimeZone};
 
+/// Truncate a string to at most `max_chars` characters without splitting UTF-8.
+pub fn truncate_chars(s: &str, max_chars: usize) -> &str {
+    match s.char_indices().nth(max_chars) {
+        Some((byte_index, _)) => &s[..byte_index],
+        None => s,
+    }
+}
+
+/// Convert HTML to plain text, clamping the width to avoid html2text's TooNarrow panic.
+pub fn html_to_text(html: &str, width: usize) -> String {
+    html2text::from_read(html.as_bytes(), width.max(20))
+}
+
 /// Format a Unix timestamp as relative time (e.g., "2 hours ago")
 pub fn format_relative_time(timestamp: i64) -> String {
     let now = Local::now();
@@ -72,5 +85,17 @@ mod tests {
         let five_min_ago = Local::now().timestamp() - 300;
         let result = format_relative_time(five_min_ago);
         assert!(result.contains("min ago"));
+    }
+
+    #[test]
+    fn test_truncate_chars_handles_utf8_boundaries() {
+        let text = "你好世界";
+        assert_eq!(truncate_chars(text, 2), "你好");
+        assert_eq!(truncate_chars(text, 10), text);
+    }
+
+    #[test]
+    fn test_html_to_text_handles_narrow_width() {
+        assert!(!html_to_text("<p>hello</p>", 1).is_empty());
     }
 }

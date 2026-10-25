@@ -90,10 +90,10 @@ impl TopicDetailView {
                 parsed.to_string()
             } else {
                 let width = std::cmp::min(100, area.width as usize);
-                html2text::from_read(content.as_bytes(), width)
+                crate::util::html_to_text(content, width)
             }
         } else {
-            html2text::from_read(content.as_bytes(), area.width as usize)
+            crate::util::html_to_text(content, area.width as usize)
         };
 
         // Build text with link highlighting if link mode is active
@@ -280,10 +280,8 @@ impl TopicDetailView {
 
                 // TODO: Add link highlighting for replies (requires ownership fix in build_highlighted_text)
                 // For now, use normal rendering even in link mode
-                let content = html2text::from_read(
-                    content_text.as_bytes(),
-                    area.width.saturating_sub(4) as usize,
-                );
+                let content =
+                    crate::util::html_to_text(content_text, area.width.saturating_sub(4) as usize);
 
                 let lines: Vec<Line> = content
                     .lines()

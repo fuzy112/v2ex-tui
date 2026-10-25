@@ -2,8 +2,12 @@ use anyhow::{Context, Result};
 use directories::BaseDirs;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::time::Duration;
+
+use crate::util::truncate_chars;
 
 const BASE_URL: &str = "https://www.v2ex.com/api/v2";
+const USER_AGENT: &str = concat!("v2ex-tui/", env!("CARGO_PKG_VERSION"));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Member {
@@ -196,22 +200,34 @@ pub struct ApiResponse<T> {
     pub result: Option<T>,
 }
 
+#[derive(Clone)]
 pub struct V2exClient {
     token: String,
     client: reqwest::Client,
 }
 
 impl V2exClient {
-    pub fn new(token: String) -> Self {
-        Self {
-            token,
-            client: reqwest::Client::new(),
-        }
+    pub fn new(token: String) -> Result<Self> {
+        let client = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(15))
+            .build()
+            .context("Failed to create HTTP client")?;
+
+        Ok(Self { token, client })
     }
 
     pub fn load_token() -> Result<String> {
         let config_dir = Self::config_dir()?;
         let token_path = config_dir.join("token.txt");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600));
+        }
+
         let token = std::fs::read_to_string(&token_path)
             .with_context(|| format!("Failed to read token from {:?}", token_path))?;
         Ok(token.trim().to_string())
@@ -221,6 +237,13 @@ impl V2exClient {
         let base_dirs = BaseDirs::new().context("Failed to get base directories")?;
         let config_dir = base_dirs.config_dir().join("v2ex");
         std::fs::create_dir_all(&config_dir)?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&config_dir, std::fs::Permissions::from_mode(0o700));
+        }
+
         Ok(config_dir)
     }
 
@@ -282,7 +305,7 @@ impl V2exClient {
                     "Failed to parse API response: {}. Status: {}. Raw response: {}",
                     e,
                     status,
-                    &text[..text.len().min(500)]
+                    truncate_chars(&text, 500)
                 ));
             }
         };
@@ -392,14 +415,9 @@ impl V2exClient {
             format!("https://www.v2ex.com/feed/tab/{}.xml", tab)
         };
 
-        // Create a client with custom settings for RSS fetching
-        let rss_client = reqwest::Client::builder()
-            .user_agent("Mozilla/5.0 (compatible; v2ex-tui/0.1.0)")
-            .danger_accept_invalid_certs(true)
-            .build()
-            .context("Failed to create RSS client")?;
-
-        let response = rss_client
+        // Use the shared client so timeouts and the User-Agent stay consistent.
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -416,11 +434,7 @@ impl V2exClient {
         let feed = match Feed::read_from(&content[..]) {
             Ok(feed) => feed,
             Err(e) => {
-                let preview = if content_str.len() > 200 {
-                    &content_str[..200]
-                } else {
-                    &content_str
-                };
+                let preview = truncate_chars(&content_str, 200);
                 return Err(anyhow::anyhow!(
                     "Failed to parse Atom feed from {}: {}. Content preview: {}",
                     url,

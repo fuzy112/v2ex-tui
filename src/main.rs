@@ -266,7 +266,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let client = V2exClient::new(token.clone());
+    let client = V2exClient::new(token.clone())?;
 
     // Test API connection
     match client.get_member().await {

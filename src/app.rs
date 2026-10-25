@@ -436,7 +436,7 @@ impl App {
                 .unwrap_or_default();
 
             // Strip HTML tags for plain text
-            let plain_text = html2text::from_read(content.as_bytes(), 80);
+            let plain_text = crate::util::html_to_text(&content, 80);
 
             match crate::clipboard::copy_to_clipboard(&plain_text) {
                 Ok(()) => {
@@ -461,7 +461,7 @@ impl App {
             .unwrap_or_default();
 
         // Strip HTML tags for plain text
-        let plain_text = html2text::from_read(content.as_bytes(), 80);
+        let plain_text = crate::util::html_to_text(&content, 80);
 
         match crate::clipboard::copy_to_clipboard(&plain_text) {
             Ok(()) => {
