@@ -5,6 +5,7 @@
 pkgs.mkShell {
   buildInputs = with pkgs; [
     cargo
+    cargo-audit
     rustc
     rustfmt
     clippy
