@@ -133,6 +133,5 @@ mod tests {
     fn test_topic_list_view_new() {
         let _view = TopicListView::new();
         // Simple test to verify the view can be created
-        assert!(true); // Placeholder assertion
     }
 }

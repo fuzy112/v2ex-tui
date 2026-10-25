@@ -149,7 +149,7 @@ impl KeyMap for TopicListKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
@@ -355,7 +355,7 @@ impl KeyMap for TopicDetailKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
@@ -597,7 +597,7 @@ impl KeyMap for NotificationsKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
@@ -749,7 +749,7 @@ impl KeyMap for ProfileKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty
@@ -818,7 +818,7 @@ impl KeyMap for HelpKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('l') | KeyCode::Left => {
                 // Remove current view from history, exit if empty
@@ -878,7 +878,7 @@ impl KeyMap for NodeSelectKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') => {
                 if app.node_state.is_completion_mode {
@@ -1086,7 +1086,7 @@ impl KeyMap for AggregateKeyMap {
         match key.code {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 // Exit app immediately
-                return Ok(true);
+                Ok(true)
             }
             KeyCode::Char('q') | KeyCode::Esc => {
                 // Remove current view from history, exit if empty

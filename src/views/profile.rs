@@ -93,6 +93,5 @@ mod tests {
     fn test_profile_view_new() {
         let _view = ProfileView::new();
         // Simple test to verify the view can be created
-        assert!(true); // Placeholder assertion
     }
 }

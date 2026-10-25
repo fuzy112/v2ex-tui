@@ -141,11 +141,10 @@ mod tests {
 
     #[test]
     fn test_notification_state_previous() {
-        let mut state = NotificationState::default();
-
-        // Add notifications
-        state.notifications = vec![create_test_notification(1), create_test_notification(2)];
-        state.selected = 1;
+        let mut state = NotificationState {
+            notifications: vec![create_test_notification(1), create_test_notification(2)],
+            selected: 1,
+        };
 
         state.previous();
         assert_eq!(state.selected, 0);
@@ -313,10 +312,10 @@ mod tests {
 
     #[test]
     fn test_topic_state_detect_links() {
-        let mut state = TopicState::default();
-
-        // Create a test topic with content containing links
-        state.current = Some(create_test_topic_with_content(1));
+        let mut state = TopicState {
+            current: Some(create_test_topic_with_content(1)),
+            ..Default::default()
+        };
 
         // Detect links
         state.detect_links(80); // Test width
@@ -883,7 +882,7 @@ impl NodeState {
                 })
                 .collect();
 
-            scored_nodes.sort_by(|a, b| b.1.cmp(&a.1));
+            scored_nodes.sort_by_key(|(_, score)| std::cmp::Reverse(*score));
 
             self.favorite_nodes = scored_nodes
                 .into_iter()

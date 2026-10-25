@@ -100,6 +100,5 @@ mod tests {
     fn test_node_select_view_new() {
         let _view = NodeSelectView::new();
         // Simple test to verify the view can be created
-        assert!(true); // Placeholder assertion
     }
 }

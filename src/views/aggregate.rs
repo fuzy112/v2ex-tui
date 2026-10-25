@@ -135,6 +135,5 @@ mod tests {
     fn test_aggregate_view_new() {
         let _view = AggregateView::new();
         // Simple test to verify the view can be created
-        assert!(true); // Placeholder assertion
     }
 }

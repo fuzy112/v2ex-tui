@@ -165,14 +165,14 @@ pub fn format_rss_item(item: &RssItem, index: Option<usize>) -> String {
 fn format_timestamp(ts: i64) -> String {
     use chrono::{DateTime, Utc};
 
-    let dt = DateTime::from_timestamp(ts, 0).unwrap_or_else(|| Utc::now());
+    let dt = DateTime::from_timestamp(ts, 0).unwrap_or_else(Utc::now);
     dt.format("%Y-%m-%d %H:%M:%S UTC").to_string()
 }
 
 /// Find nodes by filter keyword
 pub fn find_nodes(filter: Option<&str>, limit: Option<usize>) -> Vec<(String, String)> {
     let nodes = get_all_nodes();
-    let mut result: Vec<(String, String)> = nodes.iter().cloned().collect();
+    let mut result: Vec<(String, String)> = nodes.to_vec();
 
     if let Some(f) = filter {
         let f_lower = f.to_lowercase();

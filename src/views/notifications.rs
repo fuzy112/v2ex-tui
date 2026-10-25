@@ -80,6 +80,5 @@ mod tests {
     fn test_notifications_view_new() {
         let _view = NotificationsView::new();
         // Simple test to verify the view can be created
-        assert!(true); // Placeholder assertion
     }
 }
