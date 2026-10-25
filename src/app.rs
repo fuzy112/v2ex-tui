@@ -892,8 +892,11 @@ impl App {
             self.history_position -= excess;
         }
 
+        if view == View::Help {
+            self.ui_state.help_scroll = 0;
+        }
+
         self.view = view;
-        self.ui_state.error = None;
     }
 
     /// Navigate backward in history (l key)
@@ -965,6 +968,14 @@ impl App {
                     render_loading(frame, chunks[0], &self.ui_state.theme);
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
+                } else if self.topic_state.topics.is_empty() {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Topics",
+                        "No topics here. Press g to refresh or s to switch node.",
+                        &self.ui_state.theme,
+                    );
                 } else {
                     let topic_list_view = TopicListView::new();
                     topic_list_view.render(
@@ -1020,6 +1031,14 @@ impl App {
                             &self.ui_state.theme,
                         );
                     }
+                } else {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Topic",
+                        "No topic loaded. Press g to retry or q to go back.",
+                        &self.ui_state.theme,
+                    );
                 }
             }
             View::Notifications => {
@@ -1027,6 +1046,14 @@ impl App {
                     render_loading(frame, chunks[0], &self.ui_state.theme);
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
+                } else if self.notification_state.notifications.is_empty() {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Notifications",
+                        "No notifications. Press g to refresh.",
+                        &self.ui_state.theme,
+                    );
                 } else {
                     let notifications_view = NotificationsView::new();
                     notifications_view.render(
@@ -1046,25 +1073,48 @@ impl App {
                 } else if let Some(ref profile) = self.profile {
                     let profile_view = ProfileView::new();
                     profile_view.render(frame, chunks[0], profile, &self.ui_state.theme);
+                } else {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Profile",
+                        "No profile loaded. Press g to refresh.",
+                        &self.ui_state.theme,
+                    );
                 }
             }
             View::Help => {
                 let help_view = HelpView::new();
-                help_view.render(frame, chunks[0], &self.ui_state.theme);
-            }
-            View::NodeSelect => {
-                let node_select_view = NodeSelectView::new();
-                node_select_view.render(
+                help_view.render(
                     frame,
                     chunks[0],
-                    &self.node_state.favorite_nodes,
-                    self.node_state.selected,
-                    &self.node_state.current_node,
-                    &self.node_state.completion_input,
-                    self.node_state.completion_cursor,
-                    self.node_state.is_completion_mode,
+                    self.ui_state.help_scroll,
                     &self.ui_state.theme,
                 );
+            }
+            View::NodeSelect => {
+                if self.node_state.favorite_nodes.is_empty() {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Nodes",
+                        "No matching nodes. Press Tab to switch input mode.",
+                        &self.ui_state.theme,
+                    );
+                } else {
+                    let node_select_view = NodeSelectView::new();
+                    node_select_view.render(
+                        frame,
+                        chunks[0],
+                        &self.node_state.favorite_nodes,
+                        self.node_state.selected,
+                        &self.node_state.current_node,
+                        &self.node_state.completion_input,
+                        self.node_state.completion_cursor,
+                        self.node_state.is_completion_mode,
+                        &self.ui_state.theme,
+                    );
+                }
             }
             View::TokenInput => {
                 render_token_input(
@@ -1080,6 +1130,14 @@ impl App {
                     render_loading(frame, chunks[0], &self.ui_state.theme);
                 } else if let Some(ref error) = self.ui_state.error {
                     render_error(frame, chunks[0], error, &self.ui_state.theme);
+                } else if self.aggregate_state.items.is_empty() {
+                    render_empty(
+                        frame,
+                        chunks[0],
+                        "Aggregated Topics",
+                        "No aggregated topics. Press g to refresh.",
+                        &self.ui_state.theme,
+                    );
                 } else {
                     let aggregate_view = AggregateView::new();
                     aggregate_view.render(

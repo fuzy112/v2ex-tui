@@ -88,9 +88,14 @@ impl LinkSelectionKeyMap {
 impl KeyMap for LinkSelectionKeyMap {
     async fn handle_key(&self, app: &mut App, key: KeyEvent, _client: &V2exClient) -> Result<bool> {
         match key.code {
-            KeyCode::Char('q') => {
+            KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 app.topic_state.exit_link_selection_mode();
                 Ok(true)
+            }
+            KeyCode::Char('q') => {
+                app.topic_state.exit_link_selection_mode();
+                app.ui_state.status_message = "Link selection cancelled".to_string();
+                Ok(false)
             }
             KeyCode::Esc => {
                 app.topic_state.exit_link_selection_mode();
@@ -815,28 +820,46 @@ impl KeyMap for HelpKeyMap {
                 // Exit app immediately
                 return Ok(true);
             }
-            KeyCode::Char('q') | KeyCode::Esc => {
+            KeyCode::Char('q') | KeyCode::Esc | KeyCode::Char('l') | KeyCode::Left => {
                 // Remove current view from history, exit if empty
                 if app.remove_current_from_history().is_none() {
                     return Ok(true);
                 }
                 Ok(false)
             }
-            KeyCode::Char('l') | KeyCode::Left => {
-                // History back
-                app.history_back();
-                Ok(false)
-            }
             KeyCode::Char('r') | KeyCode::Right => {
-                // History forward
                 app.history_forward();
                 Ok(false)
             }
-            _ => {
-                // Any other key exits help view (history back)
-                app.history_back();
+            KeyCode::Char('n') | KeyCode::Down | KeyCode::Char(' ') => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_add(1);
                 Ok(false)
             }
+            KeyCode::Char('p') | KeyCode::Up => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_sub(1);
+                Ok(false)
+            }
+            KeyCode::PageDown => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_add(10);
+                Ok(false)
+            }
+            KeyCode::PageUp => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_sub(10);
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_add(10);
+                Ok(false)
+            }
+            KeyCode::Char('v') if key.modifiers.contains(KeyModifiers::ALT) => {
+                app.ui_state.help_scroll = app.ui_state.help_scroll.saturating_sub(10);
+                Ok(false)
+            }
+            KeyCode::Char('g') => {
+                app.ui_state.help_scroll = 0;
+                Ok(false)
+            }
+            _ => Ok(false),
         }
     }
 }

@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -18,8 +17,7 @@ impl TerminalManager {
         enable_raw_mode().context("Failed to enable raw mode")?;
 
         let mut stdout = io::stdout();
-        execute!(stdout, EnterAlternateScreen, EnableMouseCapture)
-            .context("Failed to initialize terminal")?;
+        execute!(stdout, EnterAlternateScreen).context("Failed to initialize terminal")?;
 
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend).context("Failed to create terminal")?;
@@ -36,12 +34,8 @@ impl TerminalManager {
     pub fn shutdown(&mut self) -> Result<()> {
         disable_raw_mode().context("Failed to disable raw mode")?;
 
-        execute!(
-            self.terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )
-        .context("Failed to restore terminal")?;
+        execute!(self.terminal.backend_mut(), LeaveAlternateScreen)
+            .context("Failed to restore terminal")?;
 
         self.terminal
             .show_cursor()

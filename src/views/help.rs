@@ -15,7 +15,7 @@ impl HelpView {
         Self
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, theme: &Theme) {
+    pub fn render(&self, frame: &mut Frame, area: Rect, scroll: u16, theme: &Theme) {
         let help_text = r#"
 Keyboard Shortcuts:
 
@@ -24,7 +24,7 @@ Keyboard Shortcuts:
   p / ↑     - Move up (previous item)
   l / ←     - History back (previous view)
   r / →     - History forward (next view)
-  SPC       - Scroll down
+  SPC       - Next item / scroll down
   C-v       - Page down (Ctrl+v)
   M-v       - Page up (Alt+v)
   PageUp    - Page up / Scroll up faster
@@ -38,8 +38,15 @@ Keyboard Shortcuts:
   u         - Go to profile (user)
   a         - Go to aggregated topics (RSS feeds)
   ?         - Show this help
-  q / Esc   - Quit / Remove current view from history
+  q / Esc   - Go back / quit
   C-c       - Exit app immediately
+
+=== Help ===
+  n / ↓     - Scroll down
+  p / ↑     - Scroll up
+  PageDown  - Scroll down faster
+  PageUp    - Scroll up faster
+  q / Esc   - Close help
 
 === Topic List ===
   s         - Select node from menu
@@ -47,7 +54,8 @@ Keyboard Shortcuts:
               1:python, 2:programmer, 3:分享发现,
               4:分享创造, 5:酷工作, 6:go,
               7:rust, 8:javascript, 9:linux
-  Enter/t/l - Open selected topic
+  Enter/t   - Open selected topic
+  o         - Open selected topic in browser
   +         - Load more topics
   n (at end)- Auto-load more topics
 
@@ -55,12 +63,12 @@ Keyboard Shortcuts:
   t         - Toggle replies view
   o         - Open topic/reply in browser
   f         - Enter link selection mode
-  w         - Copy selected reply to clipboard
+  w         - Copy selected reply, or topic content
   N / P     - Navigate between topics (auto-loads more)
   +         - Load more replies
   n / ↓     - Next reply (auto-loads at end)
   p / ↑     - Previous reply
-  1-9       - Open detected links by number
+  < / >     - Go to first/last reply
 
 === Link Selection Mode ===
   a,o,e,u,i,d,h,t,n,s - Type link shortcut letters
@@ -84,17 +92,20 @@ Keyboard Shortcuts:
 === Notifications ===
   n / p     - Navigate notifications
   Enter     - Open notification
+  o         - Open in browser
   g         - Refresh
 
 === Profile ===
   g         - Refresh profile
 
 === Smart Navigation ===
-  • Pressing 'n' at the end auto-loads more content
-  • Shows "Already at first/last" instead of wrapping
+  • Most lists wrap around at the ends
+  • 'n' at the end of a topic/reply list loads more content
+  • The status bar shows "Already at the first/last" at boundaries
 
 Configuration:
   Token file: ~/.config/v2ex/token.txt
+              (or $XDG_CONFIG_HOME/v2ex/token.txt)
   Get token: https://www.v2ex.com/settings/tokens
 "#;
 
@@ -103,14 +114,18 @@ Configuration:
             .map(|line| Line::styled(line, Style::default().fg(theme.foreground)))
             .collect();
 
+        let max_scroll = lines
+            .len()
+            .saturating_sub(area.height.saturating_sub(2) as usize) as u16;
+
         let help = Paragraph::new(Text::from(lines))
             .block(
                 Block::default()
                     .borders(Borders::ALL)
                     .border_style(Style::default().fg(theme.primary))
-                    .title(" Help "),
+                    .title(" Help (n/p to scroll) "),
             )
-            .scroll((0, 0));
+            .scroll((scroll.min(max_scroll), 0));
 
         frame.render_widget(help, area);
     }
