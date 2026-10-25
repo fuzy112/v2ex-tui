@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, Paragraph},
@@ -77,6 +77,24 @@ pub fn render_error(frame: &mut Frame, area: Rect, error: &str, theme: &Theme) {
     frame.render_widget(error_widget, area);
 }
 
+pub fn render_empty(frame: &mut Frame, area: Rect, title: &str, message: &str, theme: &Theme) {
+    let text = Text::from(vec![
+        Line::from(""),
+        Line::from(Span::styled(message, Style::default().fg(theme.muted))),
+    ]);
+
+    let empty = Paragraph::new(text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(theme.secondary))
+                .title(format!(" {} ", title)),
+        )
+        .alignment(Alignment::Center);
+
+    frame.render_widget(empty, area);
+}
+
 pub fn render_status_bar(frame: &mut Frame, area: Rect, message: &str, theme: &Theme) {
     let status =
         Paragraph::new(message).style(Style::default().fg(theme.background).bg(theme.primary));
@@ -91,8 +109,6 @@ pub fn render_token_input(
     cursor_position: usize,
     theme: &Theme,
 ) {
-    use ratatui::layout::Alignment;
-
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

@@ -168,25 +168,7 @@ impl KeyMap for TopicListKeyMap {
                 Ok(false)
             }
             KeyCode::Char('n') => {
-                let at_last = app.topic_state.selected + 1 >= app.topic_state.topics.len();
-                if at_last && !app.topic_state.topics.is_empty() {
-                    // At the end, try to load more topics
-                    let prev_page = app.node_state.page;
-                    app.node_state.page += 1;
-                    let prev_len = app.topic_state.topics.len();
-                    app.load_topics(client, true).await;
-                    if app.topic_state.topics.len() > prev_len {
-                        // New topics loaded, move to next
-                        app.topic_state.selected = prev_len;
-                    } else {
-                        // No more topics to load, stay at current position and restore page
-                        app.node_state.page = prev_page;
-                        app.ui_state.error = None; // Clear the API error
-                        app.ui_state.status_message = "Already at the last topic".to_string();
-                    }
-                } else {
-                    app.topic_state.next_topic();
-                }
+                app.next_topic_or_load(client);
                 Ok(false)
             }
             KeyCode::Down => {
@@ -214,28 +196,28 @@ impl KeyMap for TopicListKeyMap {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
                     app.topic_state.show_replies = false;
-                    app.load_topic_detail(client, topic_id).await;
-                    app.load_topic_replies(client, topic_id, false).await;
+                    app.load_topic_detail(client, topic_id);
+                    app.load_topic_replies(client, topic_id, false);
                     app.navigate_to(View::TopicDetail);
                 }
                 Ok(false)
             }
             KeyCode::Char('g') => {
-                app.load_topics(client, false).await;
+                app.load_topics(client, false);
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.load_aggregate(client).await;
+                app.load_aggregate(client);
                 app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.load_profile(client).await;
+                app.load_profile(client);
                 app.navigate_to(View::Profile);
                 Ok(false)
             }
@@ -251,8 +233,8 @@ impl KeyMap for TopicListKeyMap {
                 if let Some(topic) = app.topic_state.topics.get(app.topic_state.selected) {
                     let topic_id = topic.id;
                     app.topic_state.show_replies = false;
-                    app.load_topic_detail(client, topic_id).await;
-                    app.load_topic_replies(client, topic_id, false).await;
+                    app.load_topic_detail(client, topic_id);
+                    app.load_topic_replies(client, topic_id, false);
                     app.navigate_to(View::TopicDetail);
                 }
                 Ok(false)
@@ -263,13 +245,13 @@ impl KeyMap for TopicListKeyMap {
             }
             KeyCode::PageDown => {
                 app.node_state.page += 1;
-                app.load_topics(client, true).await;
+                app.load_topics(client, true);
                 Ok(false)
             }
             KeyCode::PageUp => {
                 if app.node_state.page > 1 {
                     app.node_state.page -= 1;
-                    app.load_topics(client, false).await;
+                    app.load_topics(client, false);
                 }
                 Ok(false)
             }
@@ -293,7 +275,7 @@ impl KeyMap for TopicListKeyMap {
             }
             KeyCode::Char('+') => {
                 app.node_state.page += 1;
-                app.load_topics(client, true).await;
+                app.load_topics(client, true);
                 Ok(false)
             }
             KeyCode::Char('<') => {
@@ -311,39 +293,39 @@ impl KeyMap for TopicListKeyMap {
                 match ch {
                     '1' => {
                         app.node_state.switch_node("python");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '2' => {
                         app.node_state.switch_node("programmer");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '3' => {
                         app.node_state.switch_node("share");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '4' => {
                         app.node_state.switch_node("create");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '5' => {
                         app.node_state.switch_node("jobs");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '6' => {
                         app.node_state.switch_node("go");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '7' => {
                         app.node_state.switch_node("rust");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '8' => {
                         app.node_state.switch_node("javascript");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     '9' => {
                         app.node_state.switch_node("linux");
-                        app.load_topics(client, false).await;
+                        app.load_topics(client, false);
                     }
                     _ => {}
                 }
@@ -392,118 +374,16 @@ impl KeyMap for TopicDetailKeyMap {
                 Ok(false)
             }
             KeyCode::Char('n') => {
-                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    let at_last =
-                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
-                    let has_more = app.topic_state.replies.len()
-                        < app
-                            .topic_state
-                            .current
-                            .as_ref()
-                            .map(|t| t.replies as usize)
-                            .unwrap_or(0);
-                    if at_last && has_more {
-                        // At the end with more replies available, load more
-                        if let Some(ref topic) = app.topic_state.current {
-                            let prev_len = app.topic_state.replies.len();
-                            app.load_topic_replies(client, topic.id, true).await;
-                            if app.topic_state.replies.len() > prev_len {
-                                // New replies loaded, move to next
-                                app.topic_state.selected_reply = prev_len;
-                                app.topic_state.replies_list_state.select(Some(prev_len));
-                                app.topic_state.detect_links(app.terminal_width);
-                            } else {
-                                // No more replies to load, stay at current position
-                                app.ui_state.status_message =
-                                    "Already at the last reply".to_string();
-                            }
-                        }
-                    } else if at_last && !has_more {
-                        // At the last reply and no more to load
-                        app.ui_state.status_message = "Already at the last reply".to_string();
-                    } else {
-                        app.topic_state.next_reply(app.terminal_width);
-                    }
-                } else {
-                    app.topic_state.scroll_down();
-                }
+                app.next_reply_or_load(client);
                 Ok(false)
             }
             KeyCode::Down => {
-                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    let at_last =
-                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
-                    let has_more = app.topic_state.replies.len()
-                        < app
-                            .topic_state
-                            .current
-                            .as_ref()
-                            .map(|t| t.replies as usize)
-                            .unwrap_or(0);
-                    if at_last && has_more {
-                        // At the end with more replies available, load more
-                        if let Some(ref topic) = app.topic_state.current {
-                            let prev_len = app.topic_state.replies.len();
-                            app.load_topic_replies(client, topic.id, true).await;
-                            if app.topic_state.replies.len() > prev_len {
-                                // New replies loaded, move to next
-                                app.topic_state.selected_reply = prev_len;
-                                app.topic_state.replies_list_state.select(Some(prev_len));
-                                app.topic_state.detect_links(app.terminal_width);
-                            } else {
-                                // No more replies to load, stay at current position
-                                app.ui_state.status_message =
-                                    "Already at the last reply".to_string();
-                            }
-                        }
-                    } else if at_last && !has_more {
-                        // At the last reply and no more to load
-                        app.ui_state.status_message = "Already at the last reply".to_string();
-                    } else {
-                        app.topic_state.next_reply(app.terminal_width);
-                    }
-                } else {
-                    app.topic_state.scroll_down();
-                }
+                app.next_reply_or_load(client);
                 Ok(false)
             }
             KeyCode::Char(' ') => {
                 // SPC: Scroll down (same as n/Down)
-                if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
-                    let at_last =
-                        app.topic_state.selected_reply + 1 >= app.topic_state.replies.len();
-                    let has_more = app.topic_state.replies.len()
-                        < app
-                            .topic_state
-                            .current
-                            .as_ref()
-                            .map(|t| t.replies as usize)
-                            .unwrap_or(0);
-                    if at_last && has_more {
-                        // At the end with more replies available, load more
-                        if let Some(ref topic) = app.topic_state.current {
-                            let prev_len = app.topic_state.replies.len();
-                            app.load_topic_replies(client, topic.id, true).await;
-                            if app.topic_state.replies.len() > prev_len {
-                                // New replies loaded, move to next
-                                app.topic_state.selected_reply = prev_len;
-                                app.topic_state.replies_list_state.select(Some(prev_len));
-                                app.topic_state.detect_links(app.terminal_width);
-                            } else {
-                                // No more replies to load, stay at current position
-                                app.ui_state.status_message =
-                                    "Already at the last reply".to_string();
-                            }
-                        }
-                    } else if at_last && !has_more {
-                        // At the last reply and no more to load
-                        app.ui_state.status_message = "Already at the last reply".to_string();
-                    } else {
-                        app.topic_state.next_reply(app.terminal_width);
-                    }
-                } else {
-                    app.topic_state.scroll_down();
-                }
+                app.next_reply_or_load(client);
                 Ok(false)
             }
             KeyCode::Char('p') => {
@@ -553,23 +433,23 @@ impl KeyMap for TopicDetailKeyMap {
             KeyCode::Char('g') => {
                 if let Some(ref topic) = app.topic_state.current {
                     let topic_id = topic.id;
-                    app.load_topic_detail(client, topic_id).await;
-                    app.load_topic_replies(client, topic_id, false).await;
+                    app.load_topic_detail(client, topic_id);
+                    app.load_topic_replies(client, topic_id, false);
                 }
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.load_aggregate(client).await;
+                app.load_aggregate(client);
                 app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.load_profile(client).await;
+                app.load_profile(client);
                 app.navigate_to(View::Profile);
                 Ok(false)
             }
@@ -595,17 +475,20 @@ impl KeyMap for TopicDetailKeyMap {
                 Ok(false)
             }
             KeyCode::Char('N') => {
-                app.switch_to_next_topic(client).await;
+                app.switch_to_next_topic(client);
                 Ok(false)
             }
             KeyCode::Char('P') => {
-                app.switch_to_previous_topic(client).await;
+                app.switch_to_previous_topic(client);
                 Ok(false)
             }
             KeyCode::PageDown => {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                     app.topic_state.selected_reply =
                         (app.topic_state.selected_reply + 5).min(app.topic_state.replies.len() - 1);
+                    app.topic_state
+                        .replies_list_state
+                        .select(Some(app.topic_state.selected_reply));
                 } else {
                     app.topic_state.scroll += 15;
                 }
@@ -618,6 +501,9 @@ impl KeyMap for TopicDetailKeyMap {
                     } else {
                         app.topic_state.selected_reply = 0;
                     }
+                    app.topic_state
+                        .replies_list_state
+                        .select(Some(app.topic_state.selected_reply));
                 } else if app.topic_state.scroll >= 15 {
                     app.topic_state.scroll -= 15;
                 } else {
@@ -631,6 +517,9 @@ impl KeyMap for TopicDetailKeyMap {
                 if app.topic_state.show_replies && !app.topic_state.replies.is_empty() {
                     app.topic_state.selected_reply =
                         (app.topic_state.selected_reply + 5).min(app.topic_state.replies.len() - 1);
+                    app.topic_state
+                        .replies_list_state
+                        .select(Some(app.topic_state.selected_reply));
                 } else {
                     app.topic_state.scroll += 15;
                 }
@@ -644,6 +533,9 @@ impl KeyMap for TopicDetailKeyMap {
                     } else {
                         app.topic_state.selected_reply = 0;
                     }
+                    app.topic_state
+                        .replies_list_state
+                        .select(Some(app.topic_state.selected_reply));
                 } else if app.topic_state.scroll >= 15 {
                     app.topic_state.scroll -= 15;
                 } else {
@@ -657,7 +549,7 @@ impl KeyMap for TopicDetailKeyMap {
                         let loaded_replies = app.topic_state.replies.len();
                         let total_replies = topic.replies as usize;
                         if loaded_replies < total_replies {
-                            app.load_topic_replies(client, topic.id, true).await;
+                            app.load_topic_replies(client, topic.id, true);
                         } else {
                             app.ui_state.status_message = "No more replies to load".to_string();
                         }
@@ -755,8 +647,8 @@ impl KeyMap for NotificationsKeyMap {
 
                     if let Some(topic_id) = topic_id {
                         app.topic_state.show_replies = false;
-                        app.load_topic_detail(client, topic_id).await;
-                        app.load_topic_replies(client, topic_id, false).await;
+                        app.load_topic_detail(client, topic_id);
+                        app.load_topic_replies(client, topic_id, false);
                         app.navigate_to(View::TopicDetail);
 
                         if let Some(reply_id) = reply_id {
@@ -773,21 +665,21 @@ impl KeyMap for NotificationsKeyMap {
                 Ok(false)
             }
             KeyCode::Char('g') => {
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.load_aggregate(client).await;
+                app.load_aggregate(client);
                 app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
                 // Already in notifications, refresh
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.load_profile(client).await;
+                app.load_profile(client);
                 app.navigate_to(View::Profile);
                 Ok(false)
             }
@@ -876,22 +768,22 @@ impl KeyMap for ProfileKeyMap {
                 Ok(false)
             }
             KeyCode::Char('g') => {
-                app.load_profile(client).await;
+                app.load_profile(client);
                 Ok(false)
             }
             KeyCode::Char('a') => {
-                app.load_aggregate(client).await;
+                app.load_aggregate(client);
                 app.navigate_to(View::Aggregate);
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
                 // Already in profile, refresh
-                app.load_profile(client).await;
+                app.load_profile(client);
                 Ok(false)
             }
             KeyCode::Char('s') => {
@@ -1014,13 +906,13 @@ impl KeyMap for NodeSelectKeyMap {
                     // In completion mode, Enter selects the node
                     app.node_state.select_current_node();
                     app.node_state.reset_selection();
-                    app.load_topics(client, false).await;
+                    app.load_topics(client, false);
                     app.navigate_to(View::TopicList);
                 } else {
                     // Not in completion mode, Enter also selects
                     app.node_state.select_current_node();
                     app.node_state.reset_selection();
-                    app.load_topics(client, false).await;
+                    app.load_topics(client, false);
                     app.navigate_to(View::TopicList);
                 }
                 Ok(false)
@@ -1074,7 +966,7 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('a');
                 } else {
-                    app.load_aggregate(client).await;
+                    app.load_aggregate(client);
                     app.navigate_to(View::Aggregate);
                 }
                 Ok(false)
@@ -1083,7 +975,7 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('m');
                 } else {
-                    app.load_notifications(client).await;
+                    app.load_notifications(client);
                     app.navigate_to(View::Notifications);
                 }
                 Ok(false)
@@ -1092,7 +984,7 @@ impl KeyMap for NodeSelectKeyMap {
                 if app.node_state.is_completion_mode {
                     app.node_state.insert_char('u');
                 } else {
-                    app.load_profile(client).await;
+                    app.load_profile(client);
                     app.navigate_to(View::Profile);
                 }
                 Ok(false)
@@ -1246,8 +1138,8 @@ impl KeyMap for AggregateKeyMap {
 
                     if let Some(topic_id) = topic_id {
                         app.topic_state.show_replies = false;
-                        app.load_topic_detail(client, topic_id).await;
-                        app.load_topic_replies(client, topic_id, false).await;
+                        app.load_topic_detail(client, topic_id);
+                        app.load_topic_replies(client, topic_id, false);
                         app.navigate_to(View::TopicDetail);
                         app.ui_state.status_message =
                             format!("Loading topic {} from RSS", topic_id);
@@ -1260,21 +1152,21 @@ impl KeyMap for AggregateKeyMap {
                 Ok(false)
             }
             KeyCode::Char('g') => {
-                app.load_aggregate(client).await;
+                app.load_aggregate(client);
                 Ok(false)
             }
             KeyCode::Char('a') => {
                 // Switch to apple tab
-                app.switch_aggregate_tab(client, "apple").await;
+                app.switch_aggregate_tab(client, "apple");
                 Ok(false)
             }
             KeyCode::Char('m') => {
-                app.load_notifications(client).await;
+                app.load_notifications(client);
                 app.navigate_to(View::Notifications);
                 Ok(false)
             }
             KeyCode::Char('u') => {
-                app.load_profile(client).await;
+                app.load_profile(client);
                 app.navigate_to(View::Profile);
                 Ok(false)
             }
@@ -1288,7 +1180,7 @@ impl KeyMap for AggregateKeyMap {
             }
             KeyCode::Char('t') => {
                 // Switch to tech tab
-                app.switch_aggregate_tab(client, "tech").await;
+                app.switch_aggregate_tab(client, "tech");
                 Ok(false)
             }
             KeyCode::Char('o') => {
@@ -1336,7 +1228,7 @@ impl KeyMap for AggregateKeyMap {
                     _ => None,
                 };
                 if let Some(tab) = tab {
-                    app.switch_aggregate_tab(client, tab).await;
+                    app.switch_aggregate_tab(client, tab);
                 }
                 Ok(false)
             }

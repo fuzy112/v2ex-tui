@@ -1,5 +1,7 @@
 use anyhow::Result;
-use crossterm::event::{Event, KeyCode, KeyEventKind};
+use crossterm::event::{Event, EventStream, KeyCode, KeyEventKind};
+use futures_util::StreamExt;
+use tokio::sync::mpsc;
 
 mod api;
 mod app;
@@ -78,17 +80,35 @@ async fn run_token_input(terminal: &mut TerminalManager) -> Result<Option<String
 
 async fn run_app(terminal: &mut TerminalManager, client: V2exClient) -> Result<()> {
     let mut app = App::new();
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+    app.set_event_sender(event_tx);
     let mut event_handler = EventHandler::new(&client);
+    let mut reader = EventStream::new();
 
-    // Load initial aggregated topics
-    app.load_aggregate(&client).await;
+    // Load initial aggregated topics without blocking the UI.
+    app.load_aggregate(&client);
 
     loop {
         terminal.terminal().draw(|frame| app.render(frame))?;
 
-        if let Event::Key(key) = crossterm::event::read()? {
-            if key.kind == KeyEventKind::Press && event_handler.handle_key(&mut app, key).await? {
-                break;
+        tokio::select! {
+            maybe_event = reader.next() => {
+                match maybe_event {
+                    Some(Ok(Event::Key(key))) if key.kind == KeyEventKind::Press => {
+                        if event_handler.handle_key(&mut app, key).await? {
+                            break;
+                        }
+                    }
+                    Some(Ok(Event::Resize(width, _))) => {
+                        app.handle_resize(width as usize);
+                    }
+                    Some(Err(e)) => return Err(e.into()),
+                    None => break,
+                    _ => {}
+                }
+            }
+            Some(event) = event_rx.recv() => {
+                app.handle_event(event, &client);
             }
         }
     }

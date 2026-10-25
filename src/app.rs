@@ -3,10 +3,12 @@ use ratatui::{
     Frame,
 };
 
-use crate::api::{Member, V2exClient};
+use crate::api::{Member, Notification, Reply, RssItem, Topic, V2exClient};
 use crate::browser::Browser;
 use crate::state::{AggregateState, NodeState, NotificationState, TokenState, TopicState, UiState};
-use crate::ui::{render_error, render_loading, render_status_bar, render_token_input};
+use crate::ui::{
+    render_empty, render_error, render_loading, render_status_bar, render_token_input,
+};
 use crate::views::aggregate::AggregateView;
 use crate::views::help::HelpView;
 use crate::views::node_select::NodeSelectView;
@@ -14,6 +16,7 @@ use crate::views::notifications::NotificationsView;
 use crate::views::profile::ProfileView;
 use crate::views::topic_detail::TopicDetailView;
 use crate::views::topic_list::TopicListView;
+use tokio::sync::mpsc;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum View {
@@ -25,6 +28,42 @@ pub enum View {
     NodeSelect,
     TokenInput,
     Aggregate,
+}
+
+/// Result of a background request, applied on the UI thread.
+#[derive(Debug)]
+pub enum AppEvent {
+    Topics {
+        request_id: u64,
+        page: i32,
+        append: bool,
+        focus_new: bool,
+        result: Result<Vec<Topic>, String>,
+    },
+    Topic {
+        request_id: u64,
+        result: Result<Box<Topic>, String>,
+    },
+    Replies {
+        request_id: u64,
+        page: i32,
+        append: bool,
+        focus_new: bool,
+        result: Result<Vec<Reply>, String>,
+    },
+    Notifications {
+        request_id: u64,
+        result: Result<Vec<Notification>, String>,
+    },
+    Profile {
+        request_id: u64,
+        result: Result<Box<Member>, String>,
+    },
+    Aggregate {
+        request_id: u64,
+        tab: String,
+        result: Result<Vec<RssItem>, String>,
+    },
 }
 
 #[derive(Debug)]
@@ -42,6 +81,16 @@ pub struct App {
     // History navigation
     pub view_history: Vec<View>,
     pub history_position: usize,
+    // Background loading
+    event_tx: Option<mpsc::UnboundedSender<AppEvent>>,
+    pending_loads: usize,
+    topics_request_id: u64,
+    detail_request_id: u64,
+    replies_request_id: u64,
+    notifications_request_id: u64,
+    profile_request_id: u64,
+    aggregate_request_id: u64,
+    pending_open_next_topic: bool,
 }
 
 impl App {
@@ -60,170 +109,403 @@ impl App {
             terminal_height: 24, // Default height
             view_history: vec![initial_view],
             history_position: 0,
+            event_tx: None,
+            pending_loads: 0,
+            topics_request_id: 0,
+            detail_request_id: 0,
+            replies_request_id: 0,
+            notifications_request_id: 0,
+            profile_request_id: 0,
+            aggregate_request_id: 0,
+            pending_open_next_topic: false,
         }
+    }
+
+    pub fn set_event_sender(&mut self, tx: mpsc::UnboundedSender<AppEvent>) {
+        self.event_tx = Some(tx);
+    }
+
+    pub fn handle_resize(&mut self, width: usize) {
+        self.terminal_width = width;
+        if self.topic_state.current.is_some() {
+            self.topic_state.detect_links(width);
+        }
+    }
+
+    fn next_request_id(counter: &mut u64) -> u64 {
+        *counter = counter.wrapping_add(1);
+        *counter
+    }
+
+    fn begin_load(&mut self) {
+        self.pending_loads += 1;
+        self.ui_state.loading = true;
+    }
+
+    fn finish_load(&mut self) {
+        self.pending_loads = self.pending_loads.saturating_sub(1);
+        self.ui_state.loading = self.pending_loads > 0;
     }
 
     // Data loading methods
-    pub async fn load_topics(&mut self, client: &V2exClient, append: bool) {
-        self.ui_state.loading = true;
-        self.ui_state.error = None;
-
-        match client
-            .get_node_topics(&self.node_state.current_node, self.node_state.page)
-            .await
-        {
-            Ok(mut new_topics) => {
-                if append && self.node_state.page > 1 {
-                    self.topic_state.topics.append(&mut new_topics);
-                    self.ui_state.status_message = format!(
-                        "Loaded {} more topics (total: {}) from {}",
-                        new_topics.len(),
-                        self.topic_state.topics.len(),
-                        self.node_state.current_node
-                    );
-                } else {
-                    self.topic_state.topics = new_topics;
-                    self.topic_state.selected = 0;
-                    self.ui_state.status_message = format!(
-                        "Loaded {} topics from {}",
-                        self.topic_state.topics.len(),
-                        self.node_state.current_node
-                    );
-                }
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load topics: {}", e));
-            }
-        }
-
-        self.ui_state.loading = false;
+    pub fn load_topics(&mut self, client: &V2exClient, append: bool) {
+        self.load_topics_with_focus(client, append, false);
     }
 
-    pub async fn load_topic_detail(&mut self, client: &V2exClient, topic_id: i64) {
-        self.ui_state.loading = true;
+    pub fn load_topics_with_focus(&mut self, client: &V2exClient, append: bool, focus_new: bool) {
         self.ui_state.error = None;
+        self.begin_load();
 
-        match client.get_topic(topic_id).await {
-            Ok(topic) => {
-                self.topic_state.current = Some(topic);
-                self.topic_state.detect_links(self.terminal_width);
-                self.ui_state.status_message = format!("Loaded topic {}", topic_id);
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load topic: {}", e));
-            }
-        }
+        let request_id = Self::next_request_id(&mut self.topics_request_id);
+        let node = self.node_state.current_node.clone();
+        let page = self.node_state.page;
+        let client = client.clone();
+        let tx = self.event_tx.clone();
 
-        self.ui_state.loading = false;
+        tokio::spawn(async move {
+            let result = client
+                .get_node_topics(&node, page)
+                .await
+                .map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Topics {
+                    request_id,
+                    page,
+                    append,
+                    focus_new,
+                    result,
+                });
+            }
+        });
     }
 
-    pub async fn load_topic_replies(&mut self, client: &V2exClient, topic_id: i64, append: bool) {
-        self.ui_state.loading = true;
+    pub fn load_topic_detail(&mut self, client: &V2exClient, topic_id: i64) {
         self.ui_state.error = None;
+        self.begin_load();
+
+        let request_id = Self::next_request_id(&mut self.detail_request_id);
+        let client = client.clone();
+        let tx = self.event_tx.clone();
+
+        tokio::spawn(async move {
+            let result = client
+                .get_topic(topic_id)
+                .await
+                .map(Box::new)
+                .map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Topic { request_id, result });
+            }
+        });
+    }
+
+    pub fn load_topic_replies(&mut self, client: &V2exClient, topic_id: i64, append: bool) {
+        self.load_topic_replies_with_focus(client, topic_id, append, false);
+    }
+
+    pub fn load_topic_replies_with_focus(
+        &mut self,
+        client: &V2exClient,
+        topic_id: i64,
+        append: bool,
+        focus_new: bool,
+    ) {
+        self.ui_state.error = None;
+        self.begin_load();
 
         if !append {
             self.topic_state.replies_page = 1;
         }
 
-        match client
-            .get_topic_replies(topic_id, self.topic_state.replies_page)
-            .await
-        {
-            Ok(replies) => {
-                let replies_len = replies.len();
-                let is_empty = replies.is_empty();
-                if append && self.topic_state.replies_page > 1 {
-                    self.topic_state.replies.extend(replies);
-                    self.ui_state.status_message = format!(
-                        "Loaded {} more replies (total: {})",
-                        replies_len,
-                        self.topic_state.replies.len()
-                    );
-                } else {
-                    self.topic_state.replies = replies;
-                    self.topic_state.selected_reply = 0;
-                    if is_empty {
-                        self.topic_state.replies_list_state.select(None);
-                    } else {
-                        self.topic_state.replies_list_state.select(Some(0));
-                    }
-                    self.ui_state.status_message = format!("Loaded {} replies", replies_len);
-                }
-                self.topic_state.replies_page += 1;
-                // Update links after loading replies
-                self.topic_state.detect_links(self.terminal_width);
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load replies: {}", e));
-            }
-        }
+        let request_id = Self::next_request_id(&mut self.replies_request_id);
+        let page = self.topic_state.replies_page;
+        let client = client.clone();
+        let tx = self.event_tx.clone();
 
-        self.ui_state.loading = false;
+        tokio::spawn(async move {
+            let result = client
+                .get_topic_replies(topic_id, page)
+                .await
+                .map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Replies {
+                    request_id,
+                    page,
+                    append,
+                    focus_new,
+                    result,
+                });
+            }
+        });
     }
 
-    pub async fn load_notifications(&mut self, client: &V2exClient) {
-        self.ui_state.loading = true;
+    pub fn load_notifications(&mut self, client: &V2exClient) {
         self.ui_state.error = None;
+        self.begin_load();
 
-        match client.get_notifications(1).await {
-            Ok(notifications) => {
-                self.notification_state.notifications = notifications;
-                self.notification_state.selected = 0;
-                self.ui_state.status_message = format!(
-                    "Loaded {} notifications",
-                    self.notification_state.notifications.len()
-                );
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load notifications: {}", e));
-            }
-        }
+        let request_id = Self::next_request_id(&mut self.notifications_request_id);
+        let client = client.clone();
+        let tx = self.event_tx.clone();
 
-        self.ui_state.loading = false;
+        tokio::spawn(async move {
+            let result = client.get_notifications(1).await.map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Notifications { request_id, result });
+            }
+        });
     }
 
-    pub async fn load_profile(&mut self, client: &V2exClient) {
-        self.ui_state.loading = true;
+    pub fn load_profile(&mut self, client: &V2exClient) {
         self.ui_state.error = None;
+        self.begin_load();
 
-        match client.get_member().await {
-            Ok(member) => {
-                self.profile = Some(member);
-                self.ui_state.status_message = "Loaded profile".to_string();
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load profile: {}", e));
-            }
-        }
+        let request_id = Self::next_request_id(&mut self.profile_request_id);
+        let client = client.clone();
+        let tx = self.event_tx.clone();
 
-        self.ui_state.loading = false;
+        tokio::spawn(async move {
+            let result = client
+                .get_member()
+                .await
+                .map(Box::new)
+                .map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Profile { request_id, result });
+            }
+        });
     }
 
-    pub async fn load_aggregate(&mut self, client: &V2exClient) {
-        self.ui_state.loading = true;
+    pub fn load_aggregate(&mut self, client: &V2exClient) {
         self.ui_state.error = None;
+        self.begin_load();
 
-        match client.get_rss_feed(&self.aggregate_state.current_tab).await {
-            Ok(items) => {
-                self.aggregate_state.items = items;
-                self.aggregate_state.selected = 0;
-                self.ui_state.status_message = format!(
-                    "Loaded {} aggregated topics from {} tab",
-                    self.aggregate_state.items.len(),
-                    self.aggregate_state.current_tab
-                );
-            }
-            Err(e) => {
-                self.ui_state.error = Some(format!("Failed to load aggregated topics: {}", e));
-            }
-        }
+        let request_id = Self::next_request_id(&mut self.aggregate_request_id);
+        let tab = self.aggregate_state.current_tab.clone();
+        let client = client.clone();
+        let tx = self.event_tx.clone();
 
-        self.ui_state.loading = false;
+        tokio::spawn(async move {
+            let result = client.get_rss_feed(&tab).await.map_err(|e| e.to_string());
+            if let Some(tx) = tx {
+                let _ = tx.send(AppEvent::Aggregate {
+                    request_id,
+                    tab,
+                    result,
+                });
+            }
+        });
     }
 
-    pub async fn switch_aggregate_tab(&mut self, client: &V2exClient, tab: &str) {
+    pub fn switch_aggregate_tab(&mut self, client: &V2exClient, tab: &str) {
         self.aggregate_state.switch_tab(tab);
-        self.load_aggregate(client).await;
+        self.load_aggregate(client);
+    }
+
+    /// Apply a background request result. Always called on the UI thread.
+    pub fn handle_event(&mut self, event: AppEvent, client: &V2exClient) {
+        match event {
+            AppEvent::Topics {
+                request_id,
+                page,
+                append,
+                focus_new,
+                result,
+            } => {
+                self.finish_load();
+                if request_id != self.topics_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(mut new_topics) => {
+                        if append {
+                            let prev_len = self.topic_state.topics.len();
+                            if new_topics.is_empty() {
+                                if self.node_state.page == page {
+                                    self.node_state.page = (page - 1).max(1);
+                                }
+                                self.pending_open_next_topic = false;
+                                self.ui_state.status_message =
+                                    "Already at the last topic".to_string();
+                                return;
+                            }
+
+                            let loaded = new_topics.len();
+                            self.topic_state.topics.append(&mut new_topics);
+                            if focus_new {
+                                self.topic_state.selected = prev_len;
+                            }
+                            self.ui_state.status_message = format!(
+                                "Loaded {} more topics (total: {}) from {}",
+                                loaded,
+                                self.topic_state.topics.len(),
+                                self.node_state.current_node
+                            );
+
+                            if self.pending_open_next_topic {
+                                self.pending_open_next_topic = false;
+                                if let Some(topic) = self.topic_state.topics.get(prev_len) {
+                                    let topic_id = topic.id;
+                                    self.topic_state.current = None;
+                                    self.topic_state.replies.clear();
+                                    self.topic_state.reset_scroll();
+                                    self.load_topic_detail(client, topic_id);
+                                    self.load_topic_replies(client, topic_id, false);
+                                }
+                            }
+                        } else {
+                            self.topic_state.topics = new_topics;
+                            self.topic_state.selected = 0;
+                            self.ui_state.status_message = format!(
+                                "Loaded {} topics from {}",
+                                self.topic_state.topics.len(),
+                                self.node_state.current_node
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        if append && self.node_state.page == page {
+                            self.node_state.page = (page - 1).max(1);
+                        }
+                        self.pending_open_next_topic = false;
+                        self.ui_state.error = Some(format!("Failed to load topics: {}", e));
+                    }
+                }
+            }
+            AppEvent::Topic { request_id, result } => {
+                self.finish_load();
+                if request_id != self.detail_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(topic) => {
+                        let topic_id = topic.id;
+                        self.topic_state.current = Some(*topic);
+                        self.topic_state.detect_links(self.terminal_width);
+                        self.ui_state.status_message = format!("Loaded topic {}", topic_id);
+                    }
+                    Err(e) => {
+                        self.ui_state.error = Some(format!("Failed to load topic: {}", e));
+                    }
+                }
+            }
+            AppEvent::Replies {
+                request_id,
+                page,
+                append,
+                focus_new,
+                result,
+            } => {
+                self.finish_load();
+                if request_id != self.replies_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(replies) => {
+                        let replies_len = replies.len();
+                        if append {
+                            if replies.is_empty() {
+                                self.ui_state.status_message =
+                                    "Already at the last reply".to_string();
+                                return;
+                            }
+
+                            let prev_len = self.topic_state.replies.len();
+                            self.topic_state.replies.extend(replies);
+                            if focus_new {
+                                self.topic_state.selected_reply = prev_len;
+                                self.topic_state.replies_list_state.select(Some(prev_len));
+                            }
+                            self.ui_state.status_message = format!(
+                                "Loaded {} more replies (total: {})",
+                                replies_len,
+                                self.topic_state.replies.len()
+                            );
+                        } else {
+                            self.topic_state.replies = replies;
+                            self.topic_state.selected_reply = 0;
+                            if self.topic_state.replies.is_empty() {
+                                self.topic_state.replies_list_state.select(None);
+                            } else {
+                                self.topic_state.replies_list_state.select(Some(0));
+                            }
+                            self.ui_state.status_message =
+                                format!("Loaded {} replies", replies_len);
+                        }
+
+                        self.topic_state.replies_page = page + 1;
+                        self.topic_state.detect_links(self.terminal_width);
+                    }
+                    Err(e) => {
+                        self.ui_state.error = Some(format!("Failed to load replies: {}", e));
+                    }
+                }
+            }
+            AppEvent::Notifications { request_id, result } => {
+                self.finish_load();
+                if request_id != self.notifications_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(notifications) => {
+                        self.notification_state.notifications = notifications;
+                        self.notification_state.selected = 0;
+                        self.ui_state.status_message = format!(
+                            "Loaded {} notifications",
+                            self.notification_state.notifications.len()
+                        );
+                    }
+                    Err(e) => {
+                        self.ui_state.error = Some(format!("Failed to load notifications: {}", e));
+                    }
+                }
+            }
+            AppEvent::Profile { request_id, result } => {
+                self.finish_load();
+                if request_id != self.profile_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(member) => {
+                        self.profile = Some(*member);
+                        self.ui_state.status_message = "Loaded profile".to_string();
+                    }
+                    Err(e) => {
+                        self.ui_state.error = Some(format!("Failed to load profile: {}", e));
+                    }
+                }
+            }
+            AppEvent::Aggregate {
+                request_id,
+                tab,
+                result,
+            } => {
+                self.finish_load();
+                if request_id != self.aggregate_request_id {
+                    return;
+                }
+
+                match result {
+                    Ok(items) => {
+                        self.aggregate_state.items = items;
+                        self.aggregate_state.selected = 0;
+                        self.ui_state.status_message = format!(
+                            "Loaded {} aggregated topics from {} tab",
+                            self.aggregate_state.items.len(),
+                            tab
+                        );
+                    }
+                    Err(e) => {
+                        self.ui_state.error =
+                            Some(format!("Failed to load aggregated topics: {}", e));
+                    }
+                }
+            }
+        }
     }
 
     // Helper to find current topic index based on previous view
@@ -263,7 +545,50 @@ impl App {
     }
 
     // Topic navigation in detail view
-    pub async fn switch_to_next_topic(&mut self, client: &V2exClient) {
+    /// Move to the next topic, loading the next page when at the end of the list.
+    pub fn next_topic_or_load(&mut self, client: &V2exClient) {
+        let at_last = self.topic_state.selected + 1 >= self.topic_state.topics.len();
+        if at_last && !self.topic_state.topics.is_empty() {
+            if self.ui_state.loading {
+                return;
+            }
+            self.node_state.page += 1;
+            self.load_topics_with_focus(client, true, true);
+        } else {
+            self.topic_state.next_topic();
+        }
+    }
+
+    /// Move to the next reply, loading the next page when at the end.
+    pub fn next_reply_or_load(&mut self, client: &V2exClient) {
+        if self.topic_state.show_replies && !self.topic_state.replies.is_empty() {
+            let at_last = self.topic_state.selected_reply + 1 >= self.topic_state.replies.len();
+            let has_more = self.topic_state.replies.len()
+                < self
+                    .topic_state
+                    .current
+                    .as_ref()
+                    .map(|t| t.replies as usize)
+                    .unwrap_or(0);
+
+            if at_last && has_more {
+                if self.ui_state.loading {
+                    return;
+                }
+                if let Some(topic_id) = self.topic_state.current.as_ref().map(|t| t.id) {
+                    self.load_topic_replies_with_focus(client, topic_id, true, true);
+                }
+            } else if at_last {
+                self.ui_state.status_message = "Already at the last reply".to_string();
+            } else {
+                self.topic_state.next_reply(self.terminal_width);
+            }
+        } else {
+            self.topic_state.scroll_down();
+        }
+    }
+
+    pub fn switch_to_next_topic(&mut self, client: &V2exClient) {
         if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
         {
             match source_view {
@@ -284,8 +609,8 @@ impl App {
                             self.topic_state.current = None;
                             self.topic_state.replies.clear();
                             self.topic_state.reset_scroll();
-                            self.load_topic_detail(client, topic_id).await;
-                            self.load_topic_replies(client, topic_id, false).await;
+                            self.load_topic_detail(client, topic_id);
+                            self.load_topic_replies(client, topic_id, false);
                             self.ui_state.status_message =
                                 format!("Switched to next aggregated topic (#{})", next_index + 1);
                         }
@@ -296,33 +621,24 @@ impl App {
                     if topics_len == 0 {
                         return;
                     }
-                    let at_last = current_index + 1 >= topics_len;
-                    let next_index = if at_last {
-                        // Try to load more topics
-                        let prev_page = self.node_state.page;
-                        self.node_state.page += 1;
-                        let prev_len = self.topic_state.topics.len();
-                        self.load_topics(client, true).await;
-                        if self.topic_state.topics.len() > prev_len {
-                            // New topics loaded, move to next
-                            prev_len
-                        } else {
-                            // No more topics to load, stay at current position and restore page
-                            self.node_state.page = prev_page;
-                            self.ui_state.error = None; // Clear the API error
-                            self.ui_state.status_message = "Already at the last topic".to_string();
+                    if current_index + 1 >= topics_len {
+                        // Try to load the next page, then open its first topic.
+                        if self.ui_state.loading {
                             return;
                         }
-                    } else {
-                        current_index + 1
-                    };
+                        self.node_state.page += 1;
+                        self.pending_open_next_topic = true;
+                        self.load_topics_with_focus(client, true, true);
+                        return;
+                    }
+                    let next_index = current_index + 1;
                     if let Some(next_topic) = self.topic_state.topics.get(next_index) {
                         let topic_id = next_topic.id;
                         self.topic_state.current = None;
                         self.topic_state.replies.clear();
                         self.topic_state.reset_scroll();
-                        self.load_topic_detail(client, topic_id).await;
-                        self.load_topic_replies(client, topic_id, false).await;
+                        self.load_topic_detail(client, topic_id);
+                        self.load_topic_replies(client, topic_id, false);
                         self.ui_state.status_message =
                             format!("Switched to next topic (#{})", next_index + 1);
                     }
@@ -332,7 +648,7 @@ impl App {
         }
     }
 
-    pub async fn switch_to_previous_topic(&mut self, client: &V2exClient) {
+    pub fn switch_to_previous_topic(&mut self, client: &V2exClient) {
         if let Some((current_index, source_view)) = self.find_current_topic_index_in_previous_view()
         {
             match source_view {
@@ -353,8 +669,8 @@ impl App {
                             self.topic_state.current = None;
                             self.topic_state.replies.clear();
                             self.topic_state.reset_scroll();
-                            self.load_topic_detail(client, topic_id).await;
-                            self.load_topic_replies(client, topic_id, false).await;
+                            self.load_topic_detail(client, topic_id);
+                            self.load_topic_replies(client, topic_id, false);
                             self.ui_state.status_message = format!(
                                 "Switched to previous aggregated topic (#{})",
                                 prev_index + 1
@@ -378,8 +694,8 @@ impl App {
                         self.topic_state.current = None;
                         self.topic_state.replies.clear();
                         self.topic_state.reset_scroll();
-                        self.load_topic_detail(client, topic_id).await;
-                        self.load_topic_replies(client, topic_id, false).await;
+                        self.load_topic_detail(client, topic_id);
+                        self.load_topic_replies(client, topic_id, false);
                         self.ui_state.status_message =
                             format!("Switched to previous topic (#{})", prev_index + 1);
                     }
